@@ -2,243 +2,123 @@
 \label{ch:our-algorithms}
 In this section, we introduce our methods for synthesizing low-depth CNOT circuits for block ciphers. Our approach is based on Shi and Feng's greedy method, specifically for block sizes of $16 \times 16$ and $32 \times 32$, as discussed in \cite{cryptoeprint:2023/165}.
 
-We propose a parameterized, depth-oriented algorithm for synthesizing ancilla-free, low-depth CNOT circuits, and we develop two distinct greedy strategies to further explore depth-optimized results.
+We propose a parameterized, depth-oriented algorithm for synthesizing ancilla-free, low-depth CNOT circuits, and we develop two distinct greedy algorithms: Row-or-Column and Parallel, to further explore depth-optimized results. By utilizing different matrix representations and heuristic search strategies, the implementation logic and pseudocode for each approach are detailed in the following sections.
 
-By utilizing different matrix representations and heuristic search strategies, we implement the Row-or-Column and Parallel greedy algorithms. The implementation logic and pseudocode for each approach are detailed in the following sections.
+\section{Proposed Approach}
 
-\section{Elements}
-In this section, we introduce some elements that will be used in this work.
+The primary idea integrating these cost metrics and greedy heuristics 
+is detailed in Algorithm~\ref{alg:core-idea}. To elaborate on our approach, 
+we first initialize the upper bounds ``minm`` and ``minm\_size`` 
+for the subsequent calculations. At the start of the process, a copy of 
+the input matrix is retained for final verification. Simultaneously, the 
+matrix inverse is calculated to facilitate evaluation of the cost function. 
+In addition, we initialize all required lists, and ``over`` is set to 
+\textbf{False}. After all variables have been defined, we execute the 
+greedy algorithm, using the value of $p$ to select the operation type and 
+cost function.
 
-\subsection{Variables}
+Once the greedy algorithm returns the required operations, if ``over`` 
+is triggered, the current iteration is terminated immediately and the next 
+iteration is prepared; otherwise, we proceed to arrange the available 
+operators. First, we check the operator lists $L_{r}$ and $L_{c}$ from the 
+previous iteration, as some operations may remain that do not fill the 
+list but can still reduce the cost. In this case, we append them to 
+$Ls_{r}$ and $Ls_{c}$, as shown in Algorithm~\ref{alg:last-check}, and 
+subsequently clear $L_{r}$ and $L_{c}$.
 
-We show all of variables used in our methods.
+Next, to guarantee that all collected operators are valid and to count 
+their number for the circuit, as shown in Algorithm~\ref{alg:verify-operations}, 
+we use ``Verify\_Matrix()`` to copy $M$ together with $OPs_{r}$ and 
+$OPs_{c}$. This procedure applies ``row\_i2j()`` and ``col\_i2j()`` 
+to reduce the replica while simultaneously recording the number of 
+operations used. If the reduced result is not equal to $M$, this indicates 
+that the CNOT gates are valid; otherwise, if the result remains unchanged, 
+the operators are invalid, and the corresponding CNOT gates are identified 
+as ineffective.
 
-\begin{itemize}
-    \item $M$: Given an $n \times n$ input matrix $A$, our greedy algorithm seeks to identify a sequence of operations that transforms $A$ into a permutation matrix.
-    \item $M'$: The matrix cost function is derived from the inverse of matrix $A$.
-    \item $d$: The circuit depth achieved when matrix $A$ is transformed into a permutation matrix.
-    \item SIZE: Since we are specifically considering square block matrices, the matrix size is determined by retrieving the row or column length using the built-in `length()` function.
-    \item MAX: Since our approach will explore all possible operations until $M$ become to permutation, we would like start from maximum reduce to minimum so that we choose system.float\_info.max as our condition.
-    \item $L_{r}, L_{c}$: Row and column operation sequences are stored in separate layer lists for each iteration.
-    \item $Ls_{r}, Ls_{c}$: We maintain row-layer and column-layer lists to store the specific operations assigned to each discrete circuit layer.
-    \item $L_{row}, L_{col}$: A list of remaining operations is updated after each step to exclude those already applied to the matrix.
-    \item $L_{row}^{cost}, L_{col}^{cost}$: For every operation in $L_{row}$ and $L_{col}$, the algorithm calculates and stores the resulting matrix cost function in a lookup list.
-    \item $OPs_{row}, OPS_{col}$: The collection of applied row and column operations is stored to construct the final sequence list and to verify the correctness of the transformation.
-    \item LATEST\_MINM\_DEPTH: As the name, it is using for record the latest minimum depth, if the depth over this size, then we setting "over" to True.
-    \item $p$: A control parameter is used to select the matrix cost function type. Supported functions include linear sum (1), square (2), origin (3) and logarithmic (- 1), which can be selected via their respective numerical identifiers.
-    \item over: An acceptance flag is utilized to evaluate the current circuit depth; it returns 'True' if the depth $d$ exceeds the current minimum depth, and 'False' otherwise.
-    \item close\_permu: A termination flag monitors whether the matrix is nearing a permutation state. If the current matrix can be transformed into a permutation matrix within a single layer, the flag is set to True; otherwise, it remains False.
-    \item minm: The algorithm identifies the current minimum cost across all candidates and selects the operation corresponding to this optimal value.
-    \item origin, inverse: At the start of the process, a copy of the input matrix is retained for final verification. Simultaneously, the matrix inverse is calculated to facilitate the evaluation of the cost function.
-    \item $visi_{row}, visi_{col}$: A visited list tracks the selected row and column indices; once a position is chosen, it is excluded from future iterations to prevent redundant operations.
-    \item select\_list: The selection list stores the set of candidate operations available for the current optimization step.
-    \item $H_{r}, H_{c}$: The matrix cost function is evaluated from both a row perspective and a column perspective to determine the most efficient operation.
-    \item $B_{row}, B_{col}$: The algorithm maintains a collection of row and column operations for both the Row/Column\-wise and Parallel greedy approaches; it identifies the available operators and selects the one with the lowest computational cost.
-    \item $best_{row}^{cost}, best_{col}^{cost}$: The algorithm maintains a collection of cost values for each potential operation in $B_{row}$ and $B_{col}$ to facilitate the selection of the optimal operator.
-    \item stuck\_counter: A counter is used to record the number of consecutive stalls (stuck iterations) to detect when the algorithm has reached a local optimum.
-    \item max\_stuck\_iteration: A stagnation threshold is defined to limit the number of consecutive stalls; by default, this value is set to 3.
-    \item Candidates: The algorithm also maintains a collection of non-optimal operators, representing candidates whose cost values exceeded the current minimum.
-    \item best\_escape: To resolve local minima, the algorithm identifies the optimal candidate from the escapeCandidates list—after sorting it in ascending order—and adds it to the select\_list to resume the search.
-    \item minm\_size: A threshold condition is implemented to ensure that the circuit depth (total number of layers) does not exceed the predefined limit.
-    \item reduce: A copy of the initial matrix is retained to verify that the sequence of row and column operations ($row_{op}$ and $col_{op}$) successfully transforms the origin matrix into the target representation.
-    \item size\_minm: The algorithm records the final circuit depth to document the efficiency of the optimized sequence.
-    \item per: The algorithm records the final matrix state to generate a permutation list, which defines the final mapping of the quantum registers.
-    \item seq: The algorithm maintains a comprehensive log of all applied row and column operations ($row_{op}$ and $col_{op}$), which constitutes the final quantum circuit sequence.
-    \item Layers: The algorithm maintains a record of the sets $Ls_{c}$ and $Ls_{r}$, which contain the column and row operations assigned to each parallel layer.
-    \item correct: A validation flag is employed to confirm that the combined operation sequence and layer assignments successfully transform the original matrix into a permutation matrix.
-\end{itemize}
+We then check whether the depth $d$ exceeds the maximum value, or whether 
+the CNOT count exceeds the maximum size. If either condition holds, the 
+operators are considered invalid, and we break out of the current 
+iteration. Otherwise, the depth and CNOT count are valid, and we update 
+the current record accordingly.
 
-\subsection{Cost Functions}
+Once all required operators have been obtained, we record them to local 
+files, as shown in Algorithm~\ref{alg:recorder}. We first create the 
+permutation list and then record the sequence of CNOT gates. Specifically, 
+the order of operations recorded during the reduction of $M$ to a 
+permutation matrix $P$ must be reversed when synthesizing the actual CNOT 
+circuit for $M$. This follows directly from matrix inversion: since 
+$M = (E^d_{i_d}\cdots E^1_1)^{-1} \cdot P \cdot (F^1_1\cdots F^d_{j_d})^{-1}$, 
+and inverting a product reverses the order of its factors, the elementary 
+operations used to reduce $M$ to $P$ must be applied in the opposite order 
+to reconstruct $M$ from $P$. Because each type-3 elementary matrix over 
+$\mathbb{F}_2$ is self-inverse, this reversal requires no additional matrix 
+inversion, only a reordering of the recorded operation sequence. Accordingly, 
+``sequence`` and ``Layers`` are constructed following this 
+principle. Overall, we generate files containing the permutation list, the 
+CNOT gate operations, and each layer for the input matrix.
 
-In this section, we introduce the cost functions used in this work. Later, in Algorithm~\ref{alg:costMat}, the global cost of the current matrices $M$ and $M'$ is determined as a function of $p$; locally, we adopt Algorithm~\ref{alg:functionCost} to compute the cost with respect to direction, likewise depending on the value of $p$.
+Finally, to globally verify that ``sequence`` and ``Layers`` are 
+correct, we develop the ``Verify\_All()`` function, as shown in 
+Algorithm~\ref{alg:verify-all}. The verification begins by checking that 
+each individual layer in ``Layers`` is free of conflicts, ensuring 
+that all operators within the same layer are distinct. Once we have 
+confirmed that no operations are duplicated, we execute them on a copy of 
+$M$ to verify that they indeed reproduce the final state of $M$. We further 
+ensure that all operators in ``Layers`` are unique by maintaining a 
+layer-visited list. We then verify that ``sequence`` correctly applies 
+its CNOT operations to ``origin``. Rather than replaying the recorded 
+sequence in reverse order to reconstruct $M$ directly, verification instead 
+exploits the duality between row and column operations established in 
+Section~\ref{sec:CNOT-transformation-to-Matrix-Operations}: a row operation 
+$(control, target)$ applied to $M$ is equivalent to a column operation 
+$(target, control)$ applied to $M^{-1}$, with the roles of control and 
+target exchanged. This allows the recorded sequence to be replayed in its 
+original, forward order, applying each row-type entry as a column operation 
+on the dual matrix with its control and target swapped, and each 
+column-type entry as a row operation with the same swap. This avoids the 
+need to explicitly reverse the operation list during verification. Through 
+this verification procedure, if ``origin`` is transformed into $M$, 
+we can confirm that all operations are valid for execution on a quantum 
+simulator, and the algorithm returns the depth $d$ and ``Layers``.
 
 \begin{algorithm}[htbp]
-\caption{costMat}
-\label{alg:costMat}
+\caption{Core Idea}
+\label{alg:core-idea}
 \begin{algorithmic}[1]
-\Require $M/M', p$
-\Ensure Calculate the cost value for each cost function depends on $p$ value
-\State cost $\leftarrow \varnothing$
-\State $n \leftarrow $ Length($M/M'$)
-\Match{$p$}
-	\Case{prod}
-		\State cost $\leftarrow \sum_{i=0}^{n} log_{2}(\sum_{j=0}^{n} M_{(i, j)}/M'_{(i, j)})$
-	\EndCase
-	\Case{sum}
-		\State cost $\leftarrow \sum_{i=0}^{n}(\sum_{j=0}^{n}M_{(i, j)}/M'_{(i,j)}$)
-	\EndCase
-	\Case{square}
-		\State cost $\leftarrow \sum_{i=0}^{n}(\sum_{j=0}^{n}M_{(i,j)}/M'_{(i,j)})^{2}$
-	\EndCase
-	\Case{origin}
-		\State cost $\leftarrow \sum_{i=0}^{n}\sum_{j=0}^{n}(M_{(i,j)}/M'_{(i,j)} \oplus I_{n \times n})$
-	\EndCase
-\EndMatch
-\State \Return cost
-\end{algorithmic}
-\end{algorithm}
+\Require $M \in \mathbb{F}_{2}^{n \times n}$ and $p$
+\Ensure Calculate the depth $d$ of the matrix and record all available operators in Layers
+\State minm, minm\_size $\leftarrow$ MAX \Comment{Assign the maximum value supported by the operating system as the initial upper bound.}
+\State $inv \leftarrow$ inverse($M$) \Comment{Calculate the initial inverse for $M$.}
+\State $L_{r}, L_{c}, Ls_{r}, Ls_{c}, OPs_{r}, OPs_{c} \leftarrow$ list[$\varnothing$] \Comment{Define all used lists.}
+\State over $\leftarrow False$ \Comment{Initialize the depth-based break condition.}
 
+\State $L_{r}, L_{c}, Ls_{r}, Ls_{c}, M, OPs_{r}, OPs_{c}, d$, over $\leftarrow$ Row/Col/Row-or-Col/Parallel Greedy($p$) \Comment{Select the greedy algorithm and cost function according to $p$.}
 
-\begin{algorithm}[htbp]
-\caption{functionCost}
-\label{alg:functionCost}
-\begin{algorithmic}[1]
-\Require $M, M', p$
-\Ensure Calculate the minimum cost for current $M$ and $M'$ depends on $p$ value
-\If{$p \neq 1 \hspace{2mm} || \hspace{2mm} 3$}
-	\State $H_{r}$ = costMat($M, p$) + costMat($M', p$)
-	\State $H_{c}$ = costMat($M^{T}, p$) + costMat($M', p$)
-	\State cost $\leftarrow$ max($H_{r}, H_{c}$)
-\Else
-	\State cost $\leftarrow$ costMat($M, p$) + costMat($M', p$)
+\If{over}
+	\State \Return \Comment{The greedy algorithm checks whether the depth of $M$ is greater than the latest minimum depth.}
 \EndIf
-\State \Return cost
-\end{algorithmic}
-\end{algorithm}
 
-\subsection{Pre-Processing}
+\State $Ls_{r}, Ls_{c} \leftarrow$ Last\_Check($L_{r}, L_{c}$) \Comment{Check the last collection operations.}
 
-To collect the set of operations available for circuit synthesis, we follow the principle that an operator cannot be selected if its row or column has already been visited, i.e.\ if it appears in $visi_{row}$ or $visi_{col}$. This constraint ensures efficient use of the quantum circuit area: for each layer, we aim to place as many operators as possible. Our tables $L_r$ and $L_c$ are constructed to guarantee this property, as described in Algorithm~\ref{alg:L-collection}.
+\State $size, ok$ $\leftarrow$ Verify\_Matrix($OPs_{r}, OPs_{c}, M$) \Comment{Check whether the operations work on $M$.}
 
-\begin{algorithm}[htbp]
-\caption{L\_Collection}
-\label{alg:L-collection}
-\begin{algorithmic}[1]
-\Require $visi_{row/col}$, SIZE
-\Ensure Capture all of available operators in large table $L$ depends on row or column
-	\For{$i = 0$ \textbf{to} SIZE}
-		\If{$visi_{row/col}[i] == 1$}
-			\State \textbf{continue}
-		\For{$j = 0$ \textbf{to} SIZE}
-			\If{$visi_{row/col}[i] == 1$ \textbf{or} $j == i$}
-				\State \textbf{continue}
-			\EndIf
-			\State $L$.append($i, j$)
-		\EndFor
-		\EndIf
-	\EndFor
-\State \Return $L$
-\end{algorithmic}
-\end{algorithm}
-
-\subsection{Operator Selection}
-
-After collecting all valid operators into our table $L$, we select a subset of operations to constitute a single-layer circuit. The core idea is that every selected operation should reduce the value of the cost function when applied, as shown in Algorithm~\ref{alg:ops-sel}. We use the function row\_i2j to execute the type-1 elementary row (or column) operation of adding one row (or column) to another, and then place the result into the target matrix. Note that row\_i2j is applied to $M$ and col\_i2j to $M'$ when the operator originates from a row; the roles are exchanged when the operator originates from a column.
-
-The cost value of every available operator is stored in $L_{row}^{cost}$ or $L_{col}^{cost}$, depending on the operator type. An operator is selected, added to "select\_list" to form part of the current layer, and the minimum cost is updated accordingly, if its cost value is lower than the current minimum. We also accept operators whose cost leaves the cost function unchanged (i.e.\ equal to the current value), but in this case the minimum cost is not updated.
-
-Occasionally, the search falls into a local minimum. To address this, we introduce a stuck threshold: once this threshold is reached, we switch to Algorithm~\ref{alg:rand-ops-sel}, which no longer requires the cost to decrease. Instead, we allow the cost to increase temporarily, which may help the search escape the local minimum.
-
-\begin{algorithm}[htbp]
-\caption{Ops\_Sel}
-\label{alg:ops-sel}
-\begin{algorithmic}[1]
-\Require $L_{row/col}, L_{row/col}^{cost}, M, M', p$, minm
-\Ensure Select all of available operators for a single layer depends on Row or Column
-\State $n \leftarrow$ Length($L_{row/col}$)
-\For{$i = 0$ \textbf{to} $n$}
-	\State tmp\_mat $\leftarrow$ row\_i2j($M, L_{row/col}[i].row, L_{row/col}[i].col$) \Comment{or col\_i2j}
-	\State tmp\_inv $\leftarrow$ col\_i2j($M', L_{row/col}[i].col, L_{row/col}[i].row$) \Comment{or row\_i2j}
-	\State cost $\leftarrow$ OperationCost(tmp\_mat, tmp\_inv, $p$)
-	\State $L_{row/col}^{cost}$.append(cost)
-\EndFor
-\For{$i = 0$ \textbf{to} $n$}
-	\If{$L_{row/col}^{cost}[i].cost < $ minm}
-		\State select\_list.clear()
-		\State select\_list.append($L_{row/col}^{cost}[i]$.row, $L_{row/col}^{cost}[i]$.col)
-		\State minm $\leftarrow L_{row/col}^{cost}$.cost
-	\ElsIf{$L_{row/col}^{cost}[i] == $ minm}
-		\State select\_list.append($L_{row/col}^{cost}[i]$.row, $L_{row/col}^{cost}[i]$.col)
-	\EndIf
-\EndFor
-\State \Return select\_list, minm
-\end{algorithmic}
-\end{algorithm}
-
-\begin{algorithm}[htbp]
-\caption{Rand\_Ops\_Sel}
-\label{alg:rand-ops-sel}
-\begin{algorithmic}[1]
-\Require $L_{row/col}, M, M', p$
-\Ensure Select some of random operators for a single layer depends on Row or Column and not require less than minimum cost
-\State $n \leftarrow$ Length($L_{row/col}$)
-\For{$i = 0$ \textbf{to} $n$}
-	\State tmp\_mat $\leftarrow$ row\_i2j($M, L_{row/col}[i].row, L_{row/col}[i].col$) \Comment{or col\_i2j}
-	\State tmp\_inv $\leftarrow$ col\_i2j($M', L_{row/col}[i].col, L_{row/col}[i].row$) \Comment{or row\_i2j}
-	\State cost $\leftarrow$ OperationCost(tmp\_mat, tmp\_inv, $p$)
-	\State Candidates.append(cost)
-\EndFor
-\State \Return Candidates
-\end{algorithmic}
-\end{algorithm}
-
-\subsection{Hamming-Weight Check}
-
-This is one of our strategies for finding improved results in Algorithm~\ref{alg:can-close-permu}. We check whether $M$ has become a permutation matrix; since our goal is to find the shortest path to a permutation (identity) matrix, we check whether the Hamming weight of each row and column of $M$ is less than or equal to $2$.
-
-\begin{algorithm}[htbp]
-\caption{Can\_Close\_Permu}
-\label{alg:can-close-permu}
-\begin{algorithmic}[1]
-\Require $M$, close\_permu
-\Ensure Check the $M$ whether close to permutation matrix
-\State $n \leftarrow$ Length($M$)
-\For{$i = 0$ \textbf{to} $n$}
-	\If{$\sum M[i, :] > 2$}
-		\State \Return $False$
-	\EndIf
-\EndFor
-\For{$i = 0$ \textbf{to} $n$}
-	\If{$\sum M[:, i] > 2$}
-		\State \Return $False$
-	\EndIf
-\EndFor
-\State \Return $True$
-\end{algorithmic}
-\end{algorithm}
-
-\subsection{Operation Execution}
-
-For the operations obtained from select\_list, we execute them on $M$ and $M'$ in Algorithm~\ref{alg:ops-exec}, randomly choosing an operator that reduces the cost value; this choice is also recorded in $visi_{row}$ or $visi_{col}$ to guarantee that the corresponding circuit position is not used again.
-
-Another condition arises when select\_list is empty, meaning that all positions in the current layer have been filled. In this case, we transfer $L_r$ into $Ls_r$ and $L_c$ into $Ls_c$ to finalize the synthesis for this layer, and then reset the visited lists before proceeding to the next round.
-
-\begin{algorithm}[htbp]
-\caption{Ops\_Exec}
-\label{alg:ops-exec}
-\begin{algorithmic}[1]
-\Require select\_list, $M, M', visi_{row/col}$, close\_permu
-\Ensure Execution available operations from select\_list depends on $visi_{row/col}$ address
-\If{|select\_list| $ == 0$}
-	\If{$|L_{row/col}| > 0$}
-		\State $Ls_{row/col}$.append($L_{row/col}$)
-		\State $L_{row/col}$.clear()
-		\State $visi_{row/col}$.clear()
-	\EndIf
-	\If{can\_close\_permu($M$)}
-		\State close\_permu $\leftarrow True$
-	\EndIf
-\Else
-	\State rand $\leftarrow$ random()
-	\State sel\_op $\leftarrow$ select\_list[rand]
-	\State $M \leftarrow$ row\_i2j($M$, sel\_op.row, sel\_op.col)
-	\State $M' \leftarrow$ col\_i2j($M'$, sel\_op.col, sel\_op.row)
-	\State $L_{row/col}$.append(sel\_op.row, sel\_op.col)
-	\If{$\sum visi_{row/col} == 0$}
-		\State $d$++
-	\EndIf
-	\State $visi_{row/col}$[sel\_op.row] $\leftarrow 1$
-	\State $visi_{row/col}$[sel\_op.col] $\leftarrow 1$
+\If{($d > minm$) || ($d == minm \land size \geq minm\_size$) || $!ok$}
+	\State \Return \Comment{Check whether the depth and CNOT count exceed the current minimum recorded values.}
 \EndIf
-\State \Return select\_list, minm, $M, M', layer_{row/col}, Layers_{row/col}, visi_{row/col}, d$, close\_permu
+
+\State $minm \leftarrow d$ \Comment{Update depth $d$.}
+\State CNOT\_count $\leftarrow size$ \Comment{Update CNOT count.}
+
+\State per, seq, Layers $\leftarrow$ Recorder($M, OPs_{r}, OPs_{c}, Ls_{r}, Ls_{c}$) \Comment{Create permutation, CNOT sequence and operations Layer.}
+
+\State correct $\leftarrow$ Verify\_All($M$, Layers, seq) \Comment{Verify whether the CNOT sequence and operation layers can transform the origin into $M$.}
+\If{!correct}
+	\State \Return \Comment{Break if the operations do not work for the origin to become $M$.}
+\EndIf
+\State \Return $d$, Layers
 \end{algorithmic}
 \end{algorithm}
-
-\subsection{Verifier}
-
-As Algorithm~\ref{alg:ops-exec} is executed round after round, we check whether the remaining operations are still necessary, as described in Algorithm~\ref{alg:last-check}, and extract them into $Ls_r$ or $Ls_c$ accordingly. After clearing the remaining operations, we also verify, in Algorithm~\ref{alg:verify-operations}, that all operations indeed transform $M$ into a different matrix.
-
-We then globally verify all operators using Algorithm~\ref{alg:verify-all}, beginning with Algorithm~\ref{alg:conflict-check}, which ensures that every operation within a layer is distinct. Once we have confirmed that no operations are duplicated, we execute them on a copy of $M$ to verify that they indeed reproduce the final state of $M$.
 
 \begin{algorithm}[htbp]
 \caption{Last\_Check}
@@ -247,12 +127,12 @@ We then globally verify all operators using Algorithm~\ref{alg:verify-all}, begi
 \Require $L_{r}, L_{c}$
 \Ensure Find the last round operations and insert them to $Ls_{r}$ and $Ls_{c}$
 \If{$|L_{r}| > 0$}
-	\State $Ls_{r}$.append($L_{r}$)
-	\State $L_{r}$.clear()
+	\State $Ls_{r}$.append($L_{r}$) \Comment{Insert the remaining $L_{r}$ into $Ls_{r}$.}
+	\State $L_{r}$.clear() \Comment{Clear $L_{r}$.}
 \EndIf
 \If{$|L_{c}| > 0$}
-	\State $Ls_{c}$.append($L_{c}$)
-	\State $L_{c}$.clear()
+	\State $Ls_{c}$.append($L_{c}$) \Comment{Insert the remaining $L_{c}$ into $Ls_{c}$.}
+	\State $L_{c}$.clear() \Comment{Clear $L_{c}$.}
 \EndIf
 \State \Return $Ls_{r}, Ls_{c}$
 \end{algorithmic}
@@ -262,45 +142,63 @@ We then globally verify all operators using Algorithm~\ref{alg:verify-all}, begi
 \caption{Verify\_Matrix}
 \label{alg:verify-operations}
 \begin{algorithmic}[1]
-\Require $OPs_{row}, OPs_{col}, M$
-\Ensure Check operations from OPs that can work on $M$
-\State reduce $\leftarrow$ origin
-\State size $\leftarrow 0$
-\For{$i = 0$ \textbf{to} $|OPs_{row}|$}
-	\State reduce $\leftarrow$ row\_i2j(reduce, $OPs_{row}[i]$.row, $OPs_{row}[i]$.col)
-	\State size++
+\Require $M \in \mathbb{F}_{2}^{n \times n}, OPs_{r}, OPs_{c}$
+\Ensure Check operations from $OPs_{r}$ and $OPs_{c}$ that can work on $M$
+\State reduce $\leftarrow$ $M$ \Comment{Copy $M$ into a variable to be reduced.}
+\State size $\leftarrow 0$ \Comment{Initialize the CNOT count.}
+\For{$i = 0$ \textbf{to} $|OPs_{r}|-1$}
+	\State reduce $\leftarrow$ row\_i2j(reduce, $OPs_{r}[i]$.control, $OPs_{r}[i]$.target) \Comment{Apply the row operation to ``reduce``.}
+	\State size++ \Comment{Increase the CNOT gate count.}
 \EndFor 
-\For{$j = 0$ \textbf{to} $|OPs_{col}|$}
-	\State reduce $\leftarrow$ col\_i2j(reduce, $OPs_{col}[j]$.row, $OPs_{col}[j]$.col)
-	\State size++
+\For{$j = 0$ \textbf{to} $|OPs_{c}|-1$}
+	\State reduce $\leftarrow$ col\_i2j(reduce, $OPs_{c}[j]$.control, $OPs_{col}[j]$.target) \Comment{Apply the column operation to ``reduce``.}
+	\State size++ \Comment{Increase the CNOT gate count.}
 \EndFor
 \State ok $\leftarrow True$
-\If{reduce $\neq M$}
-	\State ok $\leftarrow False$
+\If{reduce $\neq M$} \Comment{Check whether ``reduce`` is equal to $M$.}
+	\State ok $\leftarrow False$ \Comment{Break if ``reduce`` is not equal to $M$.}
 \EndIf 
-\State \Return ok
+\State \Return size, ok
 \end{algorithmic}
 \end{algorithm}
 
-
 \begin{algorithm}[htbp]
-\caption{Conflict\_Check}
-\label{alg:conflict-check}
+\caption{Recorder}
+\label{alg:recorder}
 \begin{algorithmic}[1]
-\Require $Layers$
-\Ensure Check operators in Layers are distinct
-\State conflict $\leftarrow False$
-\For{$i = 0$ \textbf{to} $|Layers|$}
-	\State used $\leftarrow [\varnothing]$
-	\For{$j = 0$ \textbf{to} $|Layers[i]|$}
-		\If{$Layers[i][j]$.row || $Layers[i][j]$.col $\in$ used}
-			\State \Return $False$
+\Require $M \in \mathbb{F}_{2}^{n \times n}, OPs_{r}, OPs_{c}, Ls_{r}, Ls_{c}$
+\Ensure Collection permutation list, sequence list and Layers 
+\State per, seq, Layers $\leftarrow [\varnothing]$ \Comment{Define the required lists.}
+\For{$i = 0$ \textbf{to} $|M|-1$}
+	\For{$j = 0$ \textbf{to} $|M|-1$}
+		\If{$M[i][j]$}
+			\State per[$i$] = $j$ \Comment{Collect the permutation list.}
 		\EndIf
-		\State used.append($Layers[i][j]$.row)
-		\State used.append($Layers[i][j]$.col)
 	\EndFor
+\EndFor 
+\For{$i = 0$ \textbf{to} $|OPs_{c}|-1$}
+	\State seq.append($OPs_{c}[i]$.target, $OPs_{c}[i]$.control) \Comment{Collect the available operations into a sequence.}
 \EndFor
-\State \Return $True$
+\State $OPs_{r} \leftarrow$ reverse($OPs_{r}$) \Comment{Reverse $OPs_{r}$ with respect to the column operations.}
+\For{$j = 0$\ \textbf{to} $|OPs_{r}|-1$}
+	\State seq.append(per[$OPs_{r}[j]$.control], per[$OPs_{r}[j]$.target]) \Comment{Record the row operations.}
+\EndFor
+\For{$i = 0$ \textbf{to} $|Ls_{c}|-1$}
+	\State nl\_c $\leftarrow [\varnothing]$ \Comment{Create a single column layer for ``Layers``.}
+	\For{$j = 0$ \textbf{to} $|Ls_{c}[i]|-1$}
+		\State nl\_c.append($Ls_{c}[i][j]$.target, $Ls_{c}[i][j]$.control) \Comment{Record a single column layer.}
+	\EndFor
+	\State Layers.append(nl\_c) \Comment{Append a single column layer to ``Layers``.}
+\EndFor
+\State $Ls_{r} \leftarrow$ reverse($Ls_{r}$) \Comment{Reverse $Ls_{r}$ with respect to the column layer.}
+\For{$k = 0$ \textbf{to} $|Ls_{r}|-1$}
+	\State nl\_r $\leftarrow [\varnothing]$ \Comment{Create a single row layer for ``Layers``.}
+	\For{$l = 0$ \textbf{to} $|Ls_{r}[k]|-1$}
+		\State nl\_r.append(per[$Ls_{r}[k][l]$.control], per[$Ls_{r}[k][l]$.target]) \Comment{Record a single row layer.}
+	\EndFor
+	\State Layers.append(nl\_r) \Comment{Append a single row layer to ``Layers``.}
+\EndFor
+\State \Return per, seq, Layers
 \end{algorithmic}
 \end{algorithm}
 
@@ -308,31 +206,31 @@ We then globally verify all operators using Algorithm~\ref{alg:verify-all}, begi
 \caption{Verify\_All}
 \label{alg:verify-all}
 \begin{algorithmic}[1]
-\Require origin, Layers, seq, $M$
+\Require $M_{origin} \in \mathbb{F}_{2}^{n \times n}, M \in \mathbb{F}_{2}^{n \times n}$, Layers, seq
 \Ensure Check all operations are work
-\State $n \leftarrow |M|$
-\If{!Conflict\_Check(Layers)}
+\State origin $\leftarrow M_{origin}$ \Comment{Copy the initial matrix without applying any CNOT gates.}
+\If{!Conflict\_Check(Layers)} \Comment{Check that all layers in ``Layers`` are distinct.}
 	\State \Return $False$
 \EndIf
-\For{$i = 0$ \textbf{to} |Layers|}
-	\State layer\_visi $\leftarrow [\varnothing]$
-	\For{$j = 0$ \textbf{to} |Layers[i]|}
-		\If{layer\_visi[Layers[i][j].row] || layer\_visi[Layers[i][j].col]}
-			\State \Return $False$
+\For{$i = 0$ \textbf{to} |Layers|-1}
+	\State layer\_visi $\leftarrow [\varnothing]$ \Comment{Create a layer-visited list.}
+	\For{$j = 0$ \textbf{to} |Layers[i]|-1}
+		\If{layer\_visi[Layers[i][j].control] or layer\_visi[Layers[i][j].target]}
+			\State \Return $False$ \Comment{Check whether the CNOT control and target exist.}
 		\Else
-			\State layer\_visi[Layers[i][j].row] $\leftarrow 1$
-			\State layer\_visi[Layers[i][j].col] $\leftarrow 1$
+			\State layer\_visi[Layers[i][j].control] $\leftarrow 1$ \Comment{Register the control in the layer-visited list.}
+			\State layer\_visi[Layers[i][j].target] $\leftarrow 1$ \Comment{Register the target in the layer-visited list.}
 		\EndIf
 	\EndFor
 \EndFor
-\For{$k = 0$ \textbf{to} |seq|}
+\For{$k = 0$ \textbf{to} |seq|-1}
 	\If{seq[k].op == row}
-		\State origin $\leftarrow$ col\_i2j(origin, seq[k].col, seq[k].row)
+		\State origin $\leftarrow$ col\_i2j(origin, seq[k].target, seq[k].control) \Comment{Apply the reversed sequence of row operations to ``origin``.}
 	\Else
-		\State origin $\leftarrow$ col\_i2j(origin, seq[k].row, seq[k].col)
+		\State origin $\leftarrow$ col\_i2j(origin, seq[k].control, seq[k].target) \Comment{Apply the column operations from ``sequence`` to ``origin``.}
 	\EndIf
 \EndFor
-\If{origin == $M$}
+\If{origin == $M$} \Comment{Check whether the origin matrix is the same as the CNOT-applied matrix $M$.}
 	\State \Return $True$
 \Else
 	\State \Return $False$
@@ -340,299 +238,213 @@ We then globally verify all operators using Algorithm~\ref{alg:verify-all}, begi
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Record}
+\subsection{Row-or-Col Greedy Algorithm}
+The first strategy evaluates both row and column operations and selects 
+the layer that yields the minimum matrix cost, as shown in 
+Algorithm~\ref{alg:row-or-col-greedy}. In the spirit of the aforementioned 
+row/column greedy algorithm, our goal remains to collect available 
+operators for $Ls_{r}$ and $Ls_{c}$; however, in this case, we explore 
+possible operations bidirectionally. Specifically, we use 
+$best_{r}^{cost}$ and $best_{c}^{cost}$, which maintain a collection of 
+cost values for each potential operation in $B_{r}$ and $B_{c}$, to 
+facilitate selection of the optimal operator.
 
-Finally, we record all relevant data, including the permutation list, the operation sequence, and the synthesized layers in Algorithm~\ref{alg:generator}. Row operators are reversed in the same manner as column operators, and the permutation list is used to record their addresses.
+To address the inherent risk of local minima in greedy heuristics, we 
+maintain a collection of sub-optimal operators, representing candidates 
+whose cost values exceed the current minimum. A counter is used to 
+record the number of consecutive stalls (i.e., stuck iterations) in 
+order to detect when the algorithm has reached a local optimum. A 
+stagnation threshold is defined to limit the number of consecutive 
+stalls; by default, this value is set to three. If the cost fails to 
+decrease for three consecutive iterations, the algorithm accepts a 
+sub-optimal operation that increases the cost, thereby enabling an 
+escape from the local minimum. That is, if neither the row nor column 
+operators can achieve a cost decrease within the threshold (three 
+iterations by default), the stall counter is incremented accordingly. 
+In this case, we execute the ``Rand\_Ops\_Sel()`` function, which 
+is similar to Algorithm~\ref{alg:ops-sel} but without the ``minm`` 
+constraint. We then identify the minimum-cost candidate returned by 
+``Rand\_Ops\_Sel()``, insert it into ``select\_list``, and 
+update ``minm`` accordingly for this cost-increasing case.
 
-\begin{algorithm}[htbp]
-\caption{Generator}
-\label{alg:generator}
-\begin{algorithmic}[1]
-\Require $M, OPs_{row}, OPs_{col}, Ls_{r}, Ls_{c}$
-\Ensure Collection permutation list, sequence list and Layers 
-\State per, seq, Layers $\leftarrow [\varnothing]$
-\For{$i = 0$ \textbf{to} $|M|$}
-	\For{$j = 0$ \textbf{to} $|M|$}
-		\If{$M[i][j]$}
-			\State per[$i$] = $j$
-		\EndIf
-	\EndFor
-\EndFor 
-\For{$i = 0$ \textbf{to} $|OPs_{col}|$}
-	\State seq.append($OPs_{col}[i]$.row, $OPs_{col}[i]$.col)
-\EndFor
-\State $OPs_{row} \leftarrow$ reverse($OPs_{row}$)
-\For{$j = 0$\ \textbf{to} $|OPs_{row}|$}
-	\State seq.append(per[$OPs_{row}[j]$.row], per[$OPs_{row}[j]$.col])
-\EndFor
-\For{$i = 0$ \textbf{to} $|Ls_{c}|$}
-	\State nl\_c $\leftarrow [\varnothing]$
-	\For{$j = 0$ \textbf{to} $|Ls_{c}[i]|$}
-		\State nl\_c.append($Ls_{c}[i][j]$.row, $Ls_{c}[i][j]$.col)
-	\EndFor
-	\State Layers.append(nl\_c)
-\EndFor
-\State $Ls_{r} \leftarrow$ reverse($Ls_{r}$)
-\For{$k = 0$ \textbf{to} $|Ls_{r}|$}
-	\State nl\_r $\leftarrow [\varnothing]$
-	\For{$l = 0$ \textbf{to} $|Ls_{r}[k]|$}
-		\State nl\_r.append(per[$Ls_{r}[k][l]$.row], per[$Ls_{r}[k][l]$.col])
-	\EndFor
-	\State Layers.append(nl\_r)
-\EndFor
-\State \Return per, seq, Layers
-\end{algorithmic}
-\end{algorithm}
+After the required operators have been collected, we compare 
+$best_{r}^{cost}$ and $best_{c}^{cost}$ to determine which operator list 
+should be selected, that is, which layer achieves the greater cost 
+reduction. In cases where the two costs are identical, the algorithm 
+defaults to the column-wise operation. If only one set of operations is 
+available, the algorithm selects that existing set.
 
-\section{Improved Shi and Feng's Work}
-
-In this section, we clarify Shi and Feng's work by presenting it as pseudocode in Algorithm~\ref{alg:Modified-Shi-Feng-Greedy}. We modify their strategy so that operators which do not reduce the cost are not selected initially; only once the stuck threshold is exceeded do we accept operations that increase the cost function. Additionally, in their "can\_one" condition, they consider only column operators for collection; based on our observations, we instead change the cost function in this condition to Table~\ref{tab:product-hamming-weight}, which guides $M$ when it is nearly complete, toward the correct direction more quickly. The effect of this modification can be seen in our experimental results (Chapter~\ref{ch:experimental-results}).
-
-\begin{algorithm}[htbp]
-\caption{Row/Col Greedy}
-\label{alg:Modified-Shi-Feng-Greedy}
-\begin{algorithmic}[1]
-\Require $M \in \mathbb{F}_{2}^{n \times n}$, $M' \in \mathbb{F}_{2}^{n \times n}$, $L_{r}, L_{c}, Ls_{r}, Ls_{c}, p$ and over
-\Ensure $Ls_{r}, Ls_{c}, row_{op}, col_{op}$ that implement permutation matrix with length $d$
-\State SIZE $\leftarrow$ $|M|$
-\State minm $\leftarrow$ Max
-\State select\_list $\leftarrow$ list($\varnothing$)
-\State $visi_{row}$ $\leftarrow [\varnothing]$, $visi_{col}$ $\leftarrow [\varnothing]$
-\State close\_permu $\leftarrow$ False
-\State LIMIT $\leftarrow$ LATEST\_MINM\_DEPTH
-\While{$M$ != Permutation}
-	\State select\_list.clear()
-	\State $L_{row/col}$.clear(), $L_{row/col}^{cost}$.clear()
-	
-	\State $H_{r}, H_{c}$, minm $\leftarrow$ functionCost($M, M', p$)
-    
-    \If{!close\_permu}
-		\State $L_{col} \leftarrow L\_Collection(visi_{row})$
-	    \State select\_list, minm $\leftarrow Ops\_Sel( L_{col}, L_{col}^{cost}, M, M', p)$ 
-    \EndIf
-
-	\State $L_{row} \leftarrow L\_Collection(visi_{row}$)
-	\State select\_list, minm $\leftarrow$ Ops\_Sel($L_{row}, L_{row}^{cost}, M, M', p$)
-    
-	\State $L_{r/c}, Ls_{r/c}, M, M', OPs_{row/col}, visi_{row/col}, d$, over $\leftarrow$ Ops\_Exec()
-
-	\If{close\_permu}
-		\State $p \leftarrow -1$
-	\EndIf
-    
-    \If{$d >$  LIMIT}
-	    \State over $\leftarrow True$ 
-	    \State \Return
-    \EndIf
-\EndWhile
-\State \Return $L_{r/c}, Ls_{r/c}, M, OPs_{row/col}, d$, over
-\If{close\_permu}
-	\State $p \leftarrow -1$
-\EndIf
-\end{algorithmic}
-\end{algorithm}
-
-\section{Hamming-Weight Guide Strategy}
-
-Our cost function is derived from the greedy framework proposed by \cite{schaeffer2014cost}, which uses the Hamming distance to the identity matrix, computed row-wise, as follows:
-
-\begin{equation}
-	h_{origin}(M) = \sum_{i=1}^{n}\sum_{j=1}^{n}(M_{(i,j)} \oplus I_{(i,j)}) + (M^{-1}_{(i,j)} \oplus I_{(i,j)})
-\end{equation}
-
-and we use this function to guide our search path. As mentioned in Section~\ref{sec:CNOT-transformation-to-Matrix-Operations}, CNOT synthesis can be regarded in terms of type-1 and type-3 elementary matrices, and according to Theorem~\ref{eq:elementary-matrix-operation-type-1-and-3}, we can expand this into the following equations:
-
-\begin{equation}
-	\label{eq:elementary-matrix-left-multiplication}
-	R_{k} \cdots R_{1} \cdot M = P \Rightarrow M = R_{1}^{-1} \cdots R_{k}^{-1} \cdot P
-\end{equation}
-
-\begin{equation}
-	\label{eq:elementary-matrix-left-right-multiplication}
-	R_{k} \cdots R_{1} \cdot M \cdot C_{1} \cdots C_{k'} = P \Rightarrow M = R_{1}^{-1} \cdots R_{k}^{-1} \cdot P \cdot C_{k'}^{-1} \cdots C_{1}^{-1}
-\end{equation}
-
-where $P$ is a permutation matrix, and we can synthesize the operators $R$ and $C$ using our $h_{origin}$ cost function. In some cases, $R$ and $C$ can be interchanged, which means our approach need not be concerned with direction when computing the cost function; this effect is even more beneficial for certain block ciphers or MDS matrices.
-
-\section{Row-or-Col}
-The first strategy we evaluates both row and column operations and selects the layer that yields the minimum matrix cost. In cases where the costs are identical, the algorithm defaults to the column-wise operation. If only one set of operations is available, the algorithm selects the existing set. 
-
-To address the inherent risk of local minima in greedy heuristics, we implement a stuck threshold. If the cost fails to decrease for three consecutive iterations, the algorithm accepts a sub-optimal operation that increases the cost, thereby enabling an escape from the local minimum. Detailed in Algorithm~\ref{alg:row-or-col-greedy}.
+We then execute the operations from ``select\_list``. Unlike the 
+row/column greedy algorithm, in the row-or-column strategy we switch the 
+cost function to $h_{prod}(M)$ once ``close\_permu`` is triggered, in 
+order to handle sparse matrices; this achieved a depth of 9 and 109 gates 
+for AES MixColumns. Finally, we check whether the depth exceeds the 
+previous minimum cost and set the ``over`` flag accordingly.
 
 \begin{algorithm}[htbp]
 \caption{Row-or-Col Greedy}
 \label{alg:row-or-col-greedy}
-\footnotesize
+\scriptsize
 \begin{algorithmic}[1]
 \Require $M \in \mathbb{F}_{2}^{n \times n}$, $M' \in \mathbb{F}_{2}^{n \times n}$, $L_{r}, L_{c}, Ls_{r}, Ls_{c}, p$, over
-\Ensure $Ls_{r}, Ls_{c}, row_{op}, col_{op}$ that implement permutation matrix with length $d$
-\State SIZE $\leftarrow$ $|M|$
-\State minm, $best_{row}^{cost}, best_{col}^{cost}$ $\leftarrow$ MAX
-\State select\_list $\leftarrow$ list($\varnothing$)
-\State $visi_{row}$ $\leftarrow [\varnothing]$, $visi_{col}$ $\leftarrow [\varnothing]$
-\State LIMIT $\leftarrow$ LATEST\_MINM\_DEPTH
-\State stuck\_counter $\leftarrow$ 0, max\_stuck\_iterations $\leftarrow$ 3
-\While{$M$ != Permutation}
+\Ensure Collection $Ls_{r}, Ls_{c}, OPs_{r}, OPs_{c}$ that implement permutation matrix with length $d$
+\State minm, $best_{r}^{cost}, best_{c}^{cost}$ $\leftarrow$ MAX \Comment{Assign the maximum value supported by the operating system as the initial upper bound.}
+\State $visi_{r}, visi_{c}$, select\_list $\leftarrow$ list[$\varnothing$] \Comment{Initialize all required lists.}
+\State LIMIT $\leftarrow$ LATEST\_MINM\_DEPTH \Comment{Define the previous minimum cost.}
+\State close\_permu $\leftarrow$ False
+\State stuck\_counter $\leftarrow$ 0, max\_stuck\_iterations $\leftarrow$ threshold \Comment{Define the local minima threshold.}
+\While{$M$ $\neq$ Permutation}
 	\State select\_list.clear()
-	\State $L_{row/col}$.clear(), $L_{row/col}^{cost}$.clear(), $B_{row/col}$.clear()
+	\State $L_{r}$.clear(), $L_{c}$.clear(), $L_{r}^{cost}$.clear(), $L_{c}^{cost}$.clear(), $B_{r}$.clear(), $B_{c}$.clear() \Comment{Clear all lists for the next iteration.}
 	
-	\State $H_{r}, H_{c}$, minm $\leftarrow$ functionCost($M, M', p$)
+	\State $H_{r}, H_{c}$, minm $\leftarrow$ functionCost($M, M', p$) \Comment{Calculate the current cost of $M$ and $M'$.}
     
-	\State $L_{row} \leftarrow$ L\_Collection($visi_{row}$)
-	\State $B_{row}, best_{row}^{cost} \leftarrow$ Ops\_Sel($L_{row}, L_{row}^{cost}, M, M', p$, minm)
+	\State $L_{r} \leftarrow$ L\_Collection($visi_{r}$) \Comment{Collect row operations.}
+	\State $B_{r}, best_{r}^{cost} \leftarrow$ Ops\_Sel($L_{r}, L_{r}^{cost}, M, M', p$, minm) \Comment{Select row operators for later comparison.}
 	
-	\State $L_{col} \leftarrow$ L\_Collection($visi_{col}$)
-	\State $B_{col}, best_{col}^{cost} \leftarrow$ Ops\_Sel($L_{col}, L_{col}^{cost}, M, M', p$, minm)
+	\State $L_{c} \leftarrow$ L\_Collection($visi_{c}$) \Comment{Collect column operations.}
+	\State $B_{c}, best_{c}^{cost} \leftarrow$ Ops\_Sel($L_{c}, L_{c}^{cost}, M, M', p$, minm) \Comment{Select column operators for later comparison.}
 	
-	\State is\_stuck = $|B_{row}|$ == 0 $\land$ $|B_{col}|$ == 0
+	\State is\_stuck = $|B_{r}|$ == 0 $\land$ $|B_{c}|$ == 0 \Comment{Set to one if neither $B_{r}$ nor $B_{c}$ has any available operators.}
 	
 	\If{is\_stuck}
-		\State stuck\_counter += 1
+		\State stuck\_counter++ \Comment{Increase the stuck counter.}
 	\Else
-		\State stuck\_counter $\leftarrow$ 0
+		\State stuck\_counter $\leftarrow$ 0 \Comment{Clear the counter when $B_{r}$ or $B_{c}$ has an available operator.}
     \EndIf
     
-    \If{(stuck\_counter $\geq$ max\_stuck) || (is\_stuck $\land \sum{visi_{row}}$ == 0 $\land \sum{visi_{col}}$ == 0)}
+    \If{(stuck\_counter $\geq$ max\_stuck) || (is\_stuck $\land \sum{visi_{r}}$ == 0 $\land \sum{visi_{c}}$ == 0)} \Comment{The stall counter exceeds the local minima threshold and no more operations are available.}
 		\State Candidates.clear()
-		\State Candidates $\leftarrow$ Rand\_Ops\_Sel($L_{row/col}, M, M', p$)
+		\State Candidates $\leftarrow$ Rand\_Ops\_Sel($L_{r}, L_{c}, M, M', p$) \Comment{Randomly select operators that increase the cost value, without needing to consider ``minm``.}
+		\State minimum\_candidate $\leftarrow$ Candidates.sort() \Comment{Sort the candidates list from minimum to maximum.}
+		\State select\_list $\leftarrow$ minimum\_candidate \Comment{Extract the minimum candidate into ``select\_list``.}
+		\State minm $\leftarrow$ minimum\_candidate.cost \Comment{Update the cost to that of the minimum candidate operator.}
+		\State stuck\_counter $\leftarrow 0$ \Comment{Clear the local minima counter.}
+	\Else \Comment{When we do not fall into a local minimum, we select an available operator from $B_{r}$ or $B_{c}$.}
+		\If{$best_{r}^{cost} < best_{c}^{cost}$}
+			\State select\_list $\leftarrow$ $B_{r}$ \Comment{Choose row operations for ``select\_list``.}
+			\State minm $\leftarrow$ $best_{r}^{cost}$ \Comment{Update the cost using the row operator.}
+		\ElsIf{$best_{r}^{cost} > best_{c}^{cost}$}
+			\State select\_list $\leftarrow$ $B_{c}$ \Comment{Choose column operations for ``select\_list``.}
+			\State minm $\leftarrow$ $best_{c}^{cost}$ \Comment{Update the cost using the column operator.}
+		\Else
+			\State select\_list $\leftarrow$ $B_{c}$ if $|B_{c}| > 0 $ else $B_{r}$ \Comment{Prefer the column operators when $B_{r}^{cost}$ equal to $B_{c}^{cost}$ if $B_{c}$ exist, otherwise, we select $B_{r}$'s operators.}
+			\State minm $\leftarrow$ $best_{c}^{cost}$ if |select\_list| $> 0$ else $best_{r}^{cost}$ \Comment{Update ``minm`` using $best_{c}^{cost}$ when ``select\_list`` selects from $B_{c}$; otherwise, update it using $best_{r}^{cost}$.}
+    	\EndIf
     \EndIf
     
-	\If{$best_{row}^{cost} < best_{col}^{cost}$}
-		\State select\_list $\leftarrow$ $B_{row}$
-		\State minm $\leftarrow$ $best_{row}^{cost}$
-	\ElsIf{$best_{row}^{cost} > best_{col}^{cost}$}
-		\State select\_list $\leftarrow$ $B_{col}$
-		\State minm $\leftarrow$ $best_{col}^{cost}$
-	\Else
-		\State select\_list $\leftarrow$ $B_{col}$ if $|B_{col}| > 0 $ else $B_{row}$
-		\State minm $\leftarrow$ $best_{col}^{cost}$ if |select\_list| $> 0$ else minm
-    \EndIf
-    
-	\State $L_{r/c}, Ls_{r/c}, M, M', OPs_{row/col}, visi_{row/col}, d$, over $\leftarrow$ Ops\_Exec()
+	\State $L_{r}, L_{c}, Ls_{r}, Ls_{c}, M, M', OPs_{r}, OPs_{c}, visi_{r}, visi_{c}, d$, over $\leftarrow$ Ops\_Exec()
+
+	\If{close\_permu}
+		\State $p \leftarrow -1$ \Comment{Switch the cost function to $H_{prod}$ when $M$ is close to a permutation matrix.}
+	\EndIf
     
     \If{$d$ > LIMIT}
-	    \State over $\leftarrow True$ 
+	    \State over $\leftarrow True$ \Comment{Break out of the iteration when the depth of $M$ exceeds the previous minimum cost value.}
 	    \State \Return
     \EndIf
 \EndWhile
-\State \Return $L_{r/c}, Ls_{r/c}, M, OPs_{row/col}, d$, over
+\State \Return $L_{r}, L_{c}, Ls_{r}, Ls_{c}, M, OPs_{r}, OPs_{c}, d$, over
 \end{algorithmic}
 \end{algorithm}
 
-\section{Parallel}
-Then the second is Parallel Greedy Algorithm~\ref{alg:parallel-greedy} strategy aggregates both row and column operations into a unified `select\_list`. 
+\subsection{Parallel Greedy Algorithm}
+The second strategy, the Parallel Greedy Algorithm
+(Algorithm~\ref{alg:parallel-greedy}), aggregates both row and column
+operations into a unified ``select\_list``. Similar to the Row-or-Col
+greedy algorithm, this strategy also considers $B_{r}$ and $B_{c}$ to
+maintain a bidirectional exploration of possible operators before
+``close\_permu`` is triggered. The primary distinction of the
+Parallel strategy, however, lies in its late-stage optimization: whereas
+the Row-or-Col strategy switches to the $H_{prod}$ cost function once the
+matrix approaches a permutation state, the Parallel strategy instead
+restricts the search exclusively to column operations at this stage,
+following the same ``close\_permu`` condition. That is, once the
+``close\_permu`` flag is activated, we adopt the spirit of the
+Row/Column greedy algorithm by considering only the available column
+operators, rather than switching the cost function as in the Row-or-Col
+strategy.
 
-In cases where one operation type is unavailable, the algorithm proceeds with the existing candidates. Similar to the Row-or-Column approach, a stagnation threshold is utilized to escape local minima; if no progress is made for three iterations, the algorithm accepts cost-increasing moves. 
+As in the Row-or-Col approach, if one operation type is unavailable, the
+algorithm proceeds with the existing candidates. Likewise, a stagnation
+threshold is used to escape local minima: if no progress is made for
+three consecutive iterations, the algorithm accepts a cost-increasing
+move.
 
-The primary distinction of the Parallel strategy lies in its late-stage optimization: when the matrix approaches a permutation state, the 'close\_permu' flag is activated, restricting the search to $h_{prod}(M)$ cost function to finalize the circuit.
+In summary, we combine both $B_{r}$ and $B_{c}$ to expand the
+``select\_list`` before the matrix reaches a low-Hamming-weight
+state, selecting the minimum cost value between $B_{r}^{cost}$ and
+$B_{c}^{cost}$, with column-wise operations considered first in our
+approach. Together, the Row-or-Col and Parallel strategies constitute the
+greedy algorithm parameters, allowing the matrix-specific strategy that
+yields the optimization circuit to be selected in advance of synthesizing the
+target quantum circuit.
+
+
 
 \begin{algorithm}[htbp]
 \caption{Parallel Greedy}
 \label{alg:parallel-greedy}
-\footnotesize
+\scriptsize
 \begin{algorithmic}[1]
-\Require $M \in \mathbb{F}_{2}^{n \times n}$, $M' \in \mathbb{F}_{2}^{n \times n}$, $L_{r/c}, Ls_{r/c}, p$, over
-\Ensure $Ls_{r/c}, OPs_{row/col}$ that implement permutation matrix with length $d$
-\State SIZE $\leftarrow |M|$
-\State minm, $best_{row}^{cost}, best_{col}^{cost}$ $\leftarrow$ MAX
-\State select\_list $\leftarrow$ list($\varnothing$)
-\State $visi_{row}$ $\leftarrow$ [$\varnothing$], $visi_{col}$ $\leftarrow$ [$\varnothing$]
-\State LIMIT $\leftarrow$ LATEST\_MINM\_DEPTH
-\State over $\leftarrow False$ 
-\State stuck\_counter $\leftarrow$ 0, max\_stuck\_iterations $\leftarrow$ 3
-\While{$M$ != Permutation}
+\Require $M \in \mathbb{F}_{2}^{n \times n}$, $M' \in \mathbb{F}_{2}^{n \times n}$, $L_{r}, L_{c}, Ls_{r}, Ls_{c}, p$, over
+\Ensure Collection $Ls_{r}, Ls_{c}, OPs_{r}, OPs_{c}$ that implement permutation matrix with length $d$
+\State minm, $best_{r}^{cost}, best_{c}^{cost}$ $\leftarrow$ MAX \Comment{Assign the maximum value supported by the operating system as the initial upper bound.}
+\State $visi_{r}, visi_{c}$, select\_list $\leftarrow$ list[$\varnothing$] \Comment{Initialize all required lists.}
+\State LIMIT $\leftarrow$ LATEST\_MINM\_DEPTH \Comment{Define the previous minimum cost.}
+\State close\_permu $\leftarrow$ False
+\State stuck\_counter $\leftarrow$ 0, max\_stuck\_iterations $\leftarrow$ threshold \Comment{Define the local minima threshold.}
+\While{$M$ $\neq$ Permutation}
 	\State select\_list.clear()
-	\State $L_{row/col}$.clear(), $L_{row/col}^{cost}$.clear(), $B_{row/col}$.clear()
+	\State $L_{r}$.clear(), $L_{c}$.clear(), $L_{r}^{cost}$.clear(), $L_{c}^{cost}$.clear(), $B_{r}$.clear(), $B_{c}$.clear() \Comment{Clear all lists for the next iteration.}
 	
-	\State $H_{r}, H_{c}$, minm $\leftarrow$ functionCost($M, M', p$)
+	\State $H_{r}, H_{c}$, minm $\leftarrow$ functionCost($M, M', p$) \Comment{Calculate the current cost of $M$ and $M'$.}
     
     \If{!close\_permu}
-		\State $L_{row} \leftarrow$ L\_Collection($visi_{row}$)
-		\State $B_{row}, best_{row}^{cost} \leftarrow$ Ops\_Sel($L_{row}$, $L_{row}^{cost}$, $mat$, $inv$, $p$, minm) 
+		\State $L_{r} \leftarrow$ L\_Collection($visi_{r}$) \Comment{Collect row operations when $M$ is not close to a low-Hamming-weight state.}
+		\State $B_{r}, best_{r}^{cost} \leftarrow$ Ops\_Sel($L_{r}$, $L_{r}^{cost}$, $M$, $M'$, $p$, minm)  \Comment{Select row operators for later combination.}
     \EndIf
     
-	\State $L_{col} \leftarrow$ L\_Collection($visi_{col}$)
-	\State $B_{col}, best_{col}^{cost} \leftarrow$ Ops\_Sel($L_{col}$, $L_{col}^{cost}$, $mat$, $inv$, $p$, minm)
+	\State $L_{c} \leftarrow$ L\_Collection($visi_{c}$) \Comment{Collect column operations; if $M$ is close to a permutation matrix, consider only these operators.}
+	\State $B_{c}, best_{c}^{cost} \leftarrow$ Ops\_Sel($L_{c}$, $L_{c}^{cost}$, $M$, $M'$, $p$, minm) \Comment{Select column operators for later combination.}
 	
-	\State is\_stuck = $|B_{row}|$ == 0 $\land$ $|B_{col}|$ == 0
+	\State is\_stuck = $|B_{r}|$ == 0 $\land$ $|B_{c}|$ == 0
 	
 	\If{is\_stuck}
-		\State stuck\_counter += 1
+		\State stuck\_counter++ \Comment{Increase the stuck counter.}
 	\Else
-		\State stuck\_counter $\leftarrow$ 0
+		\State stuck\_counter $\leftarrow$ 0 \Comment{Clear the counter when $B_{r}$ or $B_{c}$ has an available operator.}
     \EndIf
     
-    \If{(stuck\_counter $\geq$ max\_stuck\_iterations) || (is\_stuck $\land \sum{visi_{row}}$ == 0 $\land \sum{visi_{col}}$ == 0)}
+    \If{(stuck\_counter $\geq$ max\_stuck\_iterations) || (is\_stuck $\land \sum{visi_{r}}$ == 0 $\land \sum{visi_{c}}$ == 0)}
 	    \State Candidates.clear()
-		\State Candidates $\leftarrow$ Rand\_Ops\_Sel($L_{row/col}, M, M', p$)
-	\Else
-		\State select\_list $\leftarrow$ $B_{row} + B_{col}$
-		\If{$best_{row}^{cost} < best_{col}^{cost}$}
-			\State minm $\leftarrow$ $best_{row}^{cost}$
-		\ElsIf{$best_{row}^{cost} > best_{col}^{cost}$}
-			\State minm $\leftarrow$ $best_{col}^{cost}$
+		\State Candidates $\leftarrow$ Rand\_Ops\_Sel($L_{r}, L_{c}, M, M', p$) \Comment{Randomly select operators that increase the cost value, without needing to consider ``minm``.}
+		\State minimum\_candidate $\leftarrow$ Candidates.sort() \Comment{Sort the candidates list from minimum to maximum.}
+		\State select\_list $\leftarrow$ minimum\_candidate \Comment{Extract the minimum candidate into ``select\_list``.}
+		\State minm $\leftarrow$ minimum\_candidate.cost \Comment{Update the cost to that of the minimum candidate operator.}
+		\State stuck\_counter $\leftarrow 0$ \Comment{Clear the local minima counter.}
+	\Else \Comment{When we do not fall into a local minimum, we select an available operator from $B_{r}$ + $B_{c}$.}
+		\State select\_list $\leftarrow$ $B_{r} + B_{c}$
+		\If{$best_{r}^{cost} < best_{c}^{cost}$}
+			\State minm $\leftarrow$ $best_{r}^{cost}$
+		\ElsIf{$best_{r}^{cost} > best_{c}^{cost}$}
+			\State minm $\leftarrow$ $best_{c}^{cost}$
 		\Else
-			\State minm $\leftarrow$ $best_{col}^{cost}$ if |select\_list| $> 0$ else minm
+			\State minm $\leftarrow$ $best_{c}^{cost}$ if |select\_list| $> 0$ else $best_{r}^{cost}$
     	\EndIf
 	\EndIf
     
-	\State $L_{r/c}, Ls_{r/c}, M, M', OPs_{row/col}, visi_{row/col}, d$, over $\leftarrow$ Ops\_Exec()
+	\State $L_{r}, L_{c}, Ls_{r}, Ls_{c}, M, M', OPs_{r}, OPs_{c}, visi_{r}, visi_{c}, d$, over $\leftarrow$ Ops\_Exec()
 	
 	\If{close\_permu}
-		\State $p \leftarrow -1$
+		\State $p \leftarrow -1$ \Comment{Switch the cost function to $H_{prod}$ when $M$ is close to a permutation matrix.}
 	\EndIf
     
     \If{$d$ > LIMIT}
-	    \State over $\leftarrow True$
+	    \State over $\leftarrow True$ \Comment{Break out of the iteration when the depth of $M$ exceeds the previous minimum cost value.}
 	    \State \Return
     \EndIf
 \EndWhile
-\State \Return $L_{r}, L_{c}, Ls_{r}, Ls_{c}, mat, row_{op}, col_{op}, d$, flag
-\end{algorithmic}
-\end{algorithm}
-
-
-\section{Proposed Approach}
-
-The primary algorithm integrating these cost metrics and greedy heuristics is detailed in Algorithm~\ref{alg:parameterized-greedy-algorithm}.
-
-\begin{algorithm}[htbp]
-\caption{Parameterized Greedy Algorithm}
-\label{alg:parameterized-greedy-algorithm}
-\footnotesize
-\begin{algorithmic}[1]
-\Require $M$, $p$
-\Ensure $d$, $Layers$
-\State minm, minm\_size $\leftarrow$ MAX
-\State SIZE $\leftarrow$ $|M|$
-\State $origin$.copy($M$)
-\State $inv \leftarrow$ inverse($M$)
-\State $L_{r/c}, Ls_{r/c}, OPs_{row/col} \leftarrow$ list($\varnothing$)
-\State over $\leftarrow False$
-
-\State $L_{r/c}, Ls_{r/c}, M, OPs_{row/col}, d$, over $\leftarrow$ Row/Col/Row-or-Col/Parallel Greedy($p$)
-
-\If{over}
-	\State \Return
-\EndIf
-
-\State $Ls_{r}, Ls_{c} \leftarrow$ Last\_Check($L_{r}, L_{c}$)
-
-\State ok $\leftarrow$ Verify\_Matrix($OPs_{row}, OPs_{col}, M$)
-
-\If{($d > minm$) || ($d == minm \land size \geq minm\_size$) || $!ok$}
-	\State \Return
-\EndIf
-
-\State $minm \leftarrow d$
-\State size\_minm $\leftarrow$ size
-
-\State per, seq, Layers $\leftarrow$ Generator($M, OPs_{row}, OPs_{col}, Ls_{r}, Ls_{c}$)
-
-\State correct $\leftarrow$ Verify\_All(origin, Layers, seq, $M$)
-\If{!correct}
-	\State \Return
-\EndIf
-\State \Return $d$, Layers
+\State \Return $L_{r}, L_{c}, Ls_{r}, Ls_{c}, M, OPs_{r}, OPs_{c}, d$, over
 \end{algorithmic}
 \end{algorithm}

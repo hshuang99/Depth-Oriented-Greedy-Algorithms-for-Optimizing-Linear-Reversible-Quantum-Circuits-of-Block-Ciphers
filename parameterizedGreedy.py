@@ -16,7 +16,7 @@ This function will execute the four kind of greedy algorithm depends on type par
 - Row_or_Column
 - Parallel
 '''
-def chosenImprovedGreedy(mat, matName, greedy, p_value, occur):
+def parameterizedGreedy(mat, matName, greedy, p_value, occur):
     # Define variables
     SIZE = len(mat); depth = 0
     minm = sys.float_info.max; minm_size = sys.float_info.max
@@ -68,7 +68,7 @@ def chosenImprovedGreedy(mat, matName, greedy, p_value, occur):
 
     #update depth and amounts of CNOT
     minm = depth
-    size_minm = size
+    gate_count = size
 
     #create the permutation matrix
     per = [0]*SIZE
@@ -119,5 +119,5 @@ def chosenImprovedGreedy(mat, matName, greedy, p_value, occur):
             f.write("CNOT: %d\n" % (len(seq)))
         f.close()
 
-    print(f"{SIZE}-block size that depth is: ", minm, " and size is: ", size_minm)
+    print(f"{SIZE}-block size that depth is: ", minm, " and size is: ", gate_count)
     print(f"The select cost function is {REVERSED[p_value]} and used in {fileName} matrix")

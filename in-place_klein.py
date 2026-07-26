@@ -278,4 +278,4 @@ def draw_MixNibbles_circuit():
 if __name__ == "__main__":
     run_1round()
     draw_MixNibbles_circuit()
-    #run_full_16round_with_keyschedule_clt()
+    run_full_16round_with_keyschedule_clt()

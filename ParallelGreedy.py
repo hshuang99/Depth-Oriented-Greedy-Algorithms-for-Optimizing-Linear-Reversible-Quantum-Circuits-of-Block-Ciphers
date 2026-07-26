@@ -36,7 +36,7 @@ def parallelGreedy(mat, inverse, fileName, L_r, L_c, Ls_r, Ls_c, row_op, col_op,
         minm_cost = functionCost(mat, inverse, p_value)
 
         print("Current cost:", minm_cost)
-
+        
         if not close_permu:
             L_row = operations.L_collection(L_row, row_visi, SIZE)
             B_row, best_row_cst = selector.ops_sel(L_row, L_row_cst, [], [], mat, inverse, p_value, minm_cost, B_row, 0)
@@ -83,7 +83,7 @@ def parallelGreedy(mat, inverse, fileName, L_r, L_c, Ls_r, Ls_c, row_op, col_op,
             elif best_row_cst > best_col_cst:
                 minm_cost = best_col_cst
             else:
-                minm_cost = best_col_cst if len(select_list) > 0 else minm_cost
+                minm_cost = best_col_cst if len(select_list) > 0 else best_row_cst
 
         print("The current select_list and minimum cost: ", select_list, minm_cost)
          

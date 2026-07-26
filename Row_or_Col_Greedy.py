@@ -88,7 +88,7 @@ def row_or_Col(mat, inverse, fileName, L_r, L_c, Ls_r, Ls_c, row_op, col_op, p_v
                 minm_cost = best_col_cst
             else:
                 select_list = B_col if len(B_col) > 0 else B_row
-                minm_cost = best_col_cst if len(select_list) > 0 else minm_cost
+                minm_cost = best_col_cst if len(select_list) > 0 else best_row_cst
 
         print("The select list and current minm cost:", select_list, minm_cost)
         

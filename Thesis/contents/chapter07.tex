@@ -1,6 +1,8 @@
 \chapter{Discussion}
 \label{ch:discussion}
 
+\section{Limitations}
+
 In this study, our approach is based on a depth-oriented heuristic that searches for a set of synthesized operators; this heuristic does not guarantee that every combination will yield the optimal result. For practical applications, a collection of candidate operations would therefore need to be maintained for reuse across individual quantum computations.
 
 Furthermore, our strategy targets unitary quantum operations, which requires that the underlying data and matrices be invertible. However, not all data of practical interest is invertible. Accommodating such non-invertible data would require quantum error-correction techniques to construct a fault-tolerant encoding scheme capable of appropriately structuring the information; this extension falls outside the scope of the present work.
@@ -57,3 +59,19 @@ On near-term, noisy intermediate-scale quantum (NISQ) devices, the number of phy
 On fault-tolerant hardware, however, circuit depth is typically the dominant cost driver: each additional layer of gates increases the computation's exposure to decoherence and, for architectures relying on quantum error correction, increases the number of error-correction cycles that must be executed before a logical operation completes. Ancilla qubits, by comparison, are relatively inexpensive to provision once a fault-tolerant architecture with a sufficiently large logical-qubit budget is available. In this setting, the proposed out-of-place circuit is the more attractive design, trading a bounded, one-time increase in qubit count for a substantial and compounding reduction in depth across all rounds of the cipher (Section~\ref{subsec:compounding-effect}).
 
 Grover's algorithm, the primary cryptanalytic application considered in this work (Chapter~\ref{ch:experimental-results}), requires the oracle circuit to be repeated on the order of $2^{n/2}$ times. Since gate count and depth accumulate multiplicatively with the number of iterations while qubit count remains fixed after initial allocation, the depth reduction offered by the out-of-place design is expected to be especially valuable in this context: the qubit cost is paid only once, while the depth savings compound across every Grover iteration.
+
+\section{Scope of the Proposed Approach for KLEIN}
+It is important to emphasize what this analysis does and does not claim. The
+query complexity of Grover's algorithm, $O(2^{n/2})$, is fixed by the key
+size $n$ and is entirely independent of how efficiently the oracle circuit is
+implemented; the proposed optimization does not, and cannot, reduce KLEIN's
+asymptotic resistance to quantum search. What it does provide is a tighter,
+more realistic estimate of the concrete quantum resources: gate count and,
+under a NISQ-oriented cost model, circuit depth, required to instantiate a
+single Grover oracle query, following the same resource-estimation
+methodology used throughout the prior literature on this cipher
+family~\cite{cryptoeprint:2026/1007}. As discussed in
+Section~\ref{ch:introduction}, such refinements to concrete
+resource estimates remain a meaningful contribution to information security
+practice, since deployment and standardization decisions rely on accurate
+cost figures rather than asymptotic bounds alone.

@@ -10,7 +10,61 @@ To improve the efficiency of quantum circuits, it is essential to develop more c
 
 Currently, most symmetric cryptosystems are constructed using a significant number of CNOT gates. Drawing inspiration from the field of Very Large Scale Integration (VLSI), we aim to reduce the cost of quantum algorithms by focusing on circuit depth as our primary metric, targeting linear scaling.
 
-In this work, we propose an enhanced depth-oriented greedy algorithm that employs heuristic methods to achieve the shallowest possible circuit depth with a minimum number of CNOT gates. Our approach not only guarantees a speedup in the execution of quantum cryptographic algorithms but also reduces the impact of quantum noise and hardware constraints on computational results.
+From a cryptographic engineering standpoint, asymptotic security claims such as
+Grover's $O(2^{n/2})$ query complexity are necessary but insufficient for
+practical risk assessment. Standardization bodies and practitioners tasked with
+selecting, deprecating, or migrating cryptographic primitives require concrete,
+comparable cost figures rather than asymptotic bounds alone, since two
+primitives with identical asymptotic security can differ substantially in the
+practical effort required to attack them once implementation-level
+details are accounted for. This distinction underlies, for example, NIST's
+post-quantum cryptography standardization process, which defines its five
+security categories not purely in terms of asymptotic complexity but by
+benchmarking a candidate scheme's concrete attack cost against the estimated
+classical and quantum resources required to break AES-128, AES-192, and
+AES-256~\cite{chen2016report}. Under this framework, refining the resource
+estimate of a Grover-based attack on a given cipher as this thesis does for
+KLEIN is not a peripheral exercise but a direct input to how that cipher
+would be categorized and evaluated for deployment in a post-quantum threat
+model.
+
+This concern is particularly salient for lightweight ciphers such as KLEIN,
+which are designed for deployment on resource-constrained devices: RFID
+tags, sensor nodes, and other embedded Internet-of-Things (IoT) endpoints,
+that are frequently expected to remain in service for a decade or longer after
+deployment. Such devices are rarely field-upgradable, making cryptographic
+agility difficult or impossible to retrofit after the fact. Consequently, the
+security margin of a lightweight cipher against a future large-scale quantum
+adversary must be assessed today, using the most accurate available
+resource estimates, rather than revisited once quantum hardware matures. This
+is further compounded by the ``harvest now, decrypt later'' threat model, in
+which an adversary records encrypted or key-exchanged traffic in the present
+with the intent of decrypting it retroactively once sufficiently capable
+quantum hardware becomes available; for long-lived embedded deployments using
+static or infrequently rotated keys, this threat model applies directly to
+symmetric-key primitives such as KLEIN, not only to public-key schemes.
+
+In this context, the present work contributes a tighter, more accurate lower
+bound on the practical quantum resources required to mount a Grover-based
+exhaustive key search against KLEIN, obtained through a genuine circuit-level
+optimization rather than a change in assumptions or methodology. As discussed
+in Section~\ref{subsec:grover-implication}, this refinement operates entirely
+within the concrete resource-cost axis of security assessment, leaving the
+asymptotic query complexity, and therefore the cipher's nominal security
+level in bits, unchanged. Nonetheless, because resource-based cost estimates
+of this kind directly inform standardization decisions, migration timelines,
+and parameter selection for post-quantum cryptographic deployment, providing
+increasingly accurate estimates constitutes a meaningful contribution to the
+broader information security objective of ensuring that deployed
+cryptographic primitives possess an accurately characterized, rather than
+merely asymptotically bounded, security margin against quantum adversaries.
+
+In this work, we propose two enhanced depth-oriented greedy algorithms that
+employ heuristic methods to achieve the shallowest possible circuit depth,
+while producing a functionally equivalent circuit with a modest reduction in
+CNOT gate count. Our approach not only guarantees a speedup in the execution
+of quantum cryptographic algorithms but also reduces the impact of quantum
+noise and hardware constraints on computational results.
 
 \section{Problem Statement}
 In this study, we address the challenge of finding the optimal (i.e., shallowest) depth for constructing the matrix components of symmetric ciphers in gate-based quantum circuits. All matrices are defined over $\mathbb{F}_{2}$. We subsequently verify that our results are applicable to real-world block cipher schemes.

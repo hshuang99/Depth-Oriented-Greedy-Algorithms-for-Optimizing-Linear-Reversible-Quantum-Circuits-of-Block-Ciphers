@@ -23,6 +23,12 @@
 \algblockdefx[Case]{Case}{EndCase}[1]{\textbf{case} #1:}{}
 % Tell LaTeX to stop printing end statements for individual cases to keep it clean
 \algnotext{EndCase} 
+% Change "Require" to "Input:"
+\algrenewcommand\algorithmicrequire{\textbf{Input:}}
+% Optional: Change "Ensure" to "Output:"
+\algrenewcommand\algorithmicensure{\textbf{Output:}}
+% Define the custom break command
+\newcommand{\Break}{\State \textbf{break}} 
 \usepackage{array}
 \usepackage{quantikz}
 \usepackage{circuitikz}

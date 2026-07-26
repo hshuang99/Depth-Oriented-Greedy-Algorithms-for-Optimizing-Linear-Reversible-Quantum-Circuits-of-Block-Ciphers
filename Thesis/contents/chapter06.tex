@@ -19,7 +19,7 @@ In this chapter, we present the experimental results, including circuit depth fo
         WHIRLWIND M0\cite{barreto2010whirlwind} & 32 & 65/183 & 28/\textbf{286} & 28/331 & \textcolor{red}{\textbf{25}}/324 \\
         WHIRLWIND M1\cite{barreto2010whirlwind} & 32 & 69/190 & 25/279 & 22/290 & 22/\textcolor{red}{\textbf{253}}\\
         JOLTIK\cite{jean2015joltik} & 16 & 20/44 & 9/48 & 7/52 & 7/{\textbf{48}}\\
-        MIDORI\cite{banik2015midori} & 16 & 3/24 & 3/24 & 3/24 & 3/24 \\
+        MIDORI\cite{cryptoeprint:2015/1142} & 16 & 3/24 & 3/24 & 3/24 & 3/24 \\
         SmallScale AES\cite{cid2005small} & 16 & 20/43 & 11/59 & 10/62 & \textcolor{red}{\textbf{8/51}}\\
         PRIDE L3\cite{albrecht2014block} & 16 & 6/24 & 3/24 & 3/24 & 3/24\\
         PRINCE M1\cite{borghoff2012prince} & 16 & 6/24 & 3/24 & 3/24 & 3/24\\
@@ -174,6 +174,86 @@ Table~\ref{tab:mixnibbles-full-cipher}. Establishing the precise reduction in to
 circuit depth, accounting for the interleaving of MixNibbles with AddRoundKey, SubNibbles,
 and the key scheduler within each round, requires a full round-level circuit scheduling
 analysis and is left as a direction for future work.
+
+\subsection{Implication for Grover's Search Resource Estimates}
+\label{subsec:grover-implication}
+
+It is important to distinguish between two related but distinct notions of
+``security level`` under Grover's algorithm. The asymptotic security
+level, the number of oracle queries required, $O(2^{n/2})$ for an $n$-bit
+key depends only on the key size and is unaffected by how efficiently the
+oracle circuit is implemented; our optimization of the MixNibbles component
+does not alter this exponent. What is affected is the concrete resource
+cost of each oracle evaluation: since Grover's algorithm invokes the oracle
+$\left\lfloor \frac{\pi}{4}\sqrt{2^n} \right\rfloor$ times, any reduction in the
+gate count or depth of a single oracle instance directly and multiplicatively
+reduces the total quantum resources: total gate count, circuit depth, and
+the resulting cost metric, required to mount the attack, following the
+methodology of \cite{cryptoeprint:2026/1007}.
+
+Following the oracle construction of \cite{cryptoeprint:2026/1007}, in which the
+Grover oracle for KLEIN-64/64 comprises two parallel instances of the cipher
+(encryption and its inverse, as in Figure~5 of that work), substituting the
+proposed MixNibbles circuit into the oracle's round structure yields the
+resource estimates in Table~\ref{tab:grover-oracle-comparison}.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Implementation} & \textbf{CCNOT} & \textbf{CNOT} & \textbf{Pauli-X} & \textbf{Total Gates} & \textbf{Qubits} \\
+\midrule
+\cite{cryptoeprint:2026/1007} & 2400 & 20768 & 984 & 24152 & 129 \\
+Proposed                  & 2400 & 11120 & 984 & 14504 & 129$^{*}$ \\
+\midrule
+\textbf{Reduction}        & --   & \SI{46.4}{\percent} & -- & \SI{39.9}{\percent} & -- \\
+\bottomrule
+\end{tabular}
+\caption{Grover oracle resource estimates for KLEIN-64/64, before CCNOT decomposition, with the proposed MixNibbles circuit substituted into the oracle of \cite{cryptoeprint:2026/1007}.}
+\label{tab:grover-oracle-comparison}
+\end{table}
+
+\noindent $^{*}$This qubit count assumes the wire-relabeling convention
+described in Section~\ref{sec:out-of-place-tradeoff}, under which the ancilla
+wires introduced by the out-of-place MixNibbles circuit are reused as the state
+register for the subsequent round rather than uncomputed. Should an
+implementation instead require the original register layout to be restored
+after each MixNibbles invocation, additional ancilla qubits and an
+uncomputation step would be required, increasing both the qubit count and the
+depth relative to the estimate above.
+
+\paragraph{A caveat under the fault-tolerant (Clifford+T) cost model.}
+When Toffoli gates are decomposed into Clifford+T gates for fault-tolerant
+execution, the dominant cost metrics: T-count and T-depth, depend only on
+the number of CCNOT gates in the circuit (each CCNOT contributing a fixed
+$7T + 8\,\text{Clifford}$ gates, following \cite{cryptoeprint:2026/1007}). Because
+the proposed MixNibbles circuit is composed entirely of CNOT gates and
+introduces no Toffoli gates, the CCNOT count of the oracle and therefore
+its T-count and T-depth remains unchanged at $T = 16800$ under this
+decomposition, identical to \cite{cryptoeprint:2026/1007}. The proposed circuit
+does, however, still reduce the CNOT count under this model, from
+$35168$ to $25520$ (a \SI{27.4}{\percent} reduction), since the additional
+CNOT gates introduced by Toffoli decomposition scale with the (unchanged)
+CCNOT count while the base CNOT count reflects the (reduced) linear layer.
+Consequently, the benefit of the proposed optimization is most pronounced
+under CNOT-count and near-term (NISQ) resource models, and comparatively
+modest under strict fault-tolerant cost models in which T-count dominates.
+
+\paragraph{Interpretation.}
+These results should be interpreted as refining, rather than weakening, the
+security assessment of KLEIN against Grover's algorithm. The reduction in
+estimated resource cost reflects a more efficient and therefore more
+realistic, implementation of the same underlying key-search problem; it
+does not indicate a reduction in the cipher's intrinsic resistance to
+quantum attack, which remains governed by the $O(2^{n/2})$ query complexity
+inherent to Grover's algorithm. Rather, this result provides a tighter upper
+bound on the true minimal quantum resources required to execute a Grover-based
+attack on KLEIN, which is itself a meaningful contribution: resource estimates
+based on suboptimal circuit implementations risk overstating a cipher's
+practical resistance to quantum cryptanalysis, and tighter estimates such as
+the one presented here contribute to a more accurate understanding of KLEIN's
+post-quantum security margin.
 
 \section{Benchmarks for Parameterized Greedy Algorithm}
 

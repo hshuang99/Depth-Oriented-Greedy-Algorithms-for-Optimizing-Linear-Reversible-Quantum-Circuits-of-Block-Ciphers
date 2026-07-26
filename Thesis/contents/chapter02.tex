@@ -15,7 +15,7 @@ In this section, we present the notations used throughout this thesis, as listed
          \hline
          $\ket{0}, \ket{1}$ & They are the two computational basis states of a single qubit, represented as orthonormal column vectors in a 2-dimensional complex Hilbert space $\mathbb{C}^{2}$ that $$\ket{0} = \begin{pmatrix}1 \\ 0\end{pmatrix}, \ket{1} = \begin{pmatrix}0 \\ 1\end{pmatrix}$$\\
          \hline
-         $\dagger$ & The operation that transpose and then complex conjugating the pauli matrix gate.\\
+         $\dagger$ & The dagger operation transposes the Pauli matrix and then takes its complex conjugate.\\
          \hline
          $\mathbb{F}_{2}$ & The finite field with two elements $\{0, 1\}$, where addition and multiplication are performed modulo 2. \\
          \hline
@@ -23,7 +23,7 @@ In this section, we present the notations used throughout this thesis, as listed
          \hline
          $I_{n}$ & The $n \times n$ identity matrix over $\mathbb{F}_{2}$.\\
          \hline
-         $GF(2^{n})$ & The Galois field (finite field) with $2^{n}$ elements, the unique finite field of characteristic 2 and order $2^{n}$, constructed as a degree-$n$ extension of $\mathbb{F}_{2}$.\\
+         $GF(2^{n})$, $GF(n, \mathbb{F}_{2})$ & The finite field with $2^{n}$ elements, the unique finite field of characteristic 2 and order $2^{n}$, constructed as a degree-$n$ extension of $\mathbb{F}_{2}$.\\
          \hline
          $GL(n, \mathbb{F}_{2})$ & The general linear group of degree $n$ over $\mathbb{F}_{2}$, the group of all invertible $n \times n$ matrices with entries in $\mathbb{F}_{2}$, under matrix multiplication.\\
     \hline
@@ -35,7 +35,11 @@ In this section, we present the notations used throughout this thesis, as listed
 
 
 \section{Quantum Circuits}
-From the Enigma machine to computers based on the von Neumann architecture, all of these systems consist of wires and logic gates that execute their operations. Quantum computers are constructed from analogous components, combining quantum wires and quantum logic gates to form quantum circuits, which carry quantum bits and execute algorithms.
+From the Enigma machine to computers based on the von Neumann architecture, 
+all of these systems consist of wires and logic gates that execute their 
+operations. Quantum computers are constructed from analogous components, 
+combining quantum wires and quantum logic gates to form quantum circuits, 
+which carry quantum bits and execute algorithms.
 
 These are the flesh and blood of quantum computers, and we use these elements to describe the superposition state through Dirac notation:
 
@@ -44,7 +48,7 @@ These are the flesh and blood of quantum computers, and we use these elements to
     \ket{\psi} = \alpha\ket{0} + \beta\ket{1}
 \end{equation}
 
-In this section, we introduce some fundamental elements of quantum circuits, including the NOT, Controlled-NOT, and Toffoli gates. These gates can be understood through matrix operations, and circuits constructed using only these gates are referred to as NCT-based circuits.
+In this section, we introduce some fundamental elements of quantum circuits, including the NOT and Controlled-NOT gates. These gates can be understood through matrix operations, and circuits constructed using only these gates are referred to as CNOT-based circuits.
 
 Since gate-level circuits are the most commonly used construction today, we focus our efforts on reducing them.
 
@@ -71,7 +75,7 @@ a & \bar{a} \\
 X \equiv \begin{bmatrix} 0 & 1 \\ 1 & 0 \end{bmatrix}
 \]
 \end{minipage}
-\caption{The left hand side is truth table for NOT gate, and right hand side is pauli matrix X that quantum perspective of NOT gate.}
+\caption{The left-hand side shows the truth table for the NOT gate, while the right-hand side shows the Pauli-$X$ matrix, reflecting the quantum perspective of the NOT gate.}
 \label{fig:not-truth-table-and-pauli-x}
 \end{figure}
 
@@ -100,7 +104,7 @@ X \equiv \begin{bmatrix} 0 & 1 \\ 1 & 0 \end{bmatrix}
 \lstick{$\ket{a}$} & \gate{X} & \rstick{$\ket{a \oplus 1}$} \qw
 \end{quantikz}
 \end{minipage}
-\caption{Left side is logic not gate, and right side is Pauli-X quantum gate.}
+\caption{The left-hand side shows the classical NOT logic gate, while the right-hand side shows the quantum Pauli-X gate.}
 \label{fig:NOT-gate}
 \end{figure}
 
@@ -143,7 +147,7 @@ U_{CN} \equiv
 \end{bmatrix}
 \]
 \end{minipage}
-\caption{The left hand side is truth table for CNOT gate, and right hand side is it matrix that quantum perspective of CNOT gate.}
+\caption{The left-hand side shows the truth table for the CNOT gate, while the right-hand side shows its matrix representation, reflecting the quantum perspective of the CNOT gate.}
 \label{fig:CNOT-truth-table-and-matrix}
 \end{figure}
 
@@ -175,95 +179,22 @@ To understand it in more detail, we present its truth table in Figure~\ref{fig:C
 \lstick{$\ket{b}$} & \targ{1} & \rstick{$\ket{b \oplus a}$} \qw
 \end{quantikz}
 \end{minipage}
-\caption{Left-hand side is Logic gates of XOR, right-hand side is quantum CNOT gate.}
+\caption{The left-hand side shows the classical XOR logic gate, while the right-hand side shows the quantum CNOT gate.}
 \label{fig:XOR-and-CNOT}
 \end{figure}
 
-Its behavior is as follows: if the control qubit is set to $0$, the target qubit remains unchanged; if the control qubit is set to $1$, the target qubit is flipped. This can be summarized as $\ket{A, B} \rightarrow \ket{A, B \oplus A}$, and this gate is likewise a unitary matrix present on the right-hand side of Figure~\ref{fig:XOR-and-CNOT}, satisfying $U_{CN}^{\dagger}U_{CN} \equiv I$.
+Classical logic gates such as XOR are, in general, irreversible (or
+non-invertible): after computing $A \oplus B$, the original values of $A$
+and $B$ cannot be recovered, since information about the inputs is lost in
+the process. Quantum gates, by contrast, must be unitary, and unitary
+operations are always invertible. For example, the CNOT gate outputs
+$A \oplus B$ on the target qubit; the original input can be recovered by
+applying the control fanout again, since $A \oplus B \oplus A \equiv B$.
+Because the inverse of a unitary matrix is itself unitary, every unitary
+quantum gate can be inverted by another unitary quantum gate; in fact,
+by itself, in the case of CNOT.
 
-This gate is powerful precisely because operations such as XOR and NAND are irreversible, or non-invertible: after computing $A \oplus B$, we cannot recover the original values of $A$ and $B$, since information is lost in the process. Unitary gates, however, are always invertible. For example, the CNOT gate outputs $B \oplus A$ on the target qubit; we can recover the original input by applying the control fanout again, since $B \oplus A \oplus A \equiv B$. Because the inverse of a unitary matrix is itself unitary, any unitary quantum gate can always be inverted by another unitary quantum gate.
-
-The last of the NCT-based quantum logic gates is the Toffoli gate, sometimes called the Controlled-Controlled-NOT gate, or CCNOT gate. This gate is indispensable for simulating classical computation, since it can simulate the NAND gate and thereby convert irreversible classical operations into reversible ones. Like the other gates discussed above, the Toffoli gate is unitary, satisfying $U_{TF}^{\dagger}U_{TF} \equiv I$, and it is its own inverse.
-
-\begin{figure}[h]
-\centering
-\begin{minipage}{0.45\textwidth}
-\centering
-\begin{displaymath}
-\begin{array}{c|c}
-\hline
-{\ket{abc}} & {\ket{a'b'c'}}\\
-\hline
-{\ket{000}} & {\ket{000}}  \\
-{\ket{001}} & {\ket{001}}  \\
-{\ket{010}} & {\ket{010}}  \\
-{\ket{011}} & {\ket{011}}  \\
-{\ket{100}} & {\ket{100}}  \\
-{\ket{101}} & {\ket{101}}  \\
-{\ket{110}} & {\ket{111}}  \\
-{\ket{111}} & {\ket{110}}  \\
-\end{array}
-\end{displaymath}
-\end{minipage}%
-\hfill
-\begin{minipage}{0.45\textwidth}
-\centering
-\[
-U_{TF} \equiv 
-\begin{bmatrix}
-    1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\ 
-    0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
-    0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\
-    0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\
-    0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\ 
-    0 & 0 & 0 & 0 & 0 & 1 & 0 & 0 \\
-    0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\
-    0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 \\
-\end{bmatrix}
-\]
-\end{minipage}
-\caption{The left hand side is truth table for Toffoli gate, and right hand side is it matrix that quantum perspective of CCNOT gate.}
-\end{figure}
-
-The Toffoli gate has three input bits: two of them are control bits, and the remaining one, on the bottom line, is the target bit, which is flipped if both control bits are set to $1$; otherwise, it remains unchanged. Its action can be written as $(a, b, c) \rightarrow (a, b, c \oplus a \cdot b)$.
-
-We can also see this represented as a circuit, as follows:
-
-\begin{figure}[h]
-\centering
-\begin{quantikz}
-\lstick{$\ket{a}$} & \ctrl{2} & \rstick{$\ket{a}$} \qw \\
-\lstick{$\ket{b}$} & \ctrl{1} & \rstick{$\ket{b}$} \qw \\
-\lstick{$\ket{c}$} & \targ{} & \rstick{$\ket{c \oplus a \cdot b}$} \qw
-\end{quantikz}
-\caption{The Toffoli gate}
-\end{figure}
-
-We can also construct a classical NAND gate by preparing the third input as $1$; the two control inputs then serve as the NAND gate's two inputs. This fixed, prepared state is sometimes called an ancilla qubit. Additionally, we can fan out one of the control inputs using two ancilla qubits.
-
-\begin{figure}[h]
-\centering
-\begin{minipage}{0.45\textwidth}
-\centering
-\begin{quantikz}
-\lstick{$\ket{a}$} & \ctrl{2} & \rstick{$\ket{a}$} \qw \\
-\lstick{$\ket{b}$} & \ctrl{1} & \rstick{$\ket{b}$} \qw \\
-\lstick{$\ket{1}$} & \targ{} & \rstick{$\ket{1 \oplus a \cdot b} \equiv \neg(a \cdot b)$} \qw
-\end{quantikz}
-\end{minipage}%
-\hfill
-\begin{minipage}{0.45\textwidth}
-\centering
-\begin{quantikz}
-\lstick{$\ket{a}$} & \ctrl{2} & \rstick{$\ket{a}$} \qw \\
-\lstick{$\ket{1}$} & \ctrl{1} & \rstick{$\ket{1}$} \qw \\
-\lstick{$\ket{0}$} & \targ{} & \rstick{$\ket{0 \oplus a \cdot 1} \equiv \ket{a}$} \qw
-\end{quantikz}
-\end{minipage}
-\caption{The left hand side is truth table for Toffoli gate, and right hand side is it matrix that quantum perspective of CCNOT gate.}
-\end{figure}
-
-We now have the computational capability provided by the NOT, XOR, and AND gates; thus, any classical circuit can be replaced by an equivalent quantum circuit containing only reversible elements.
+Its behavior is as follows: if the control qubit is set to $0$, the target qubit remains unchanged; if the control qubit is set to $1$, the target qubit is flipped. This can be summarized as $\ket{A, B} \rightarrow \ket{A, B \oplus A}$, and this gate is likewise a unitary matrix present on the right-hand side of Figure~\ref{fig:XOR-and-CNOT}, satisfying $U_{CN}^{\dagger}U_{CN} \equiv I$. We now have the computational capability provided by the NOT and XOR gates.
 
 \section{Optimization Target}
 
@@ -379,3 +310,59 @@ matrix first and optimizing its implementation afterward, an approach
 particularly relevant to Chapter~\ref{ch:klein}, where we treat AES MixColumns
 (and, by structural analogy, the KLEIN MixNibbles matrix) as an instance of
 this formal MDS framework for the purpose of quantum CNOT-depth optimization.
+
+\section{Grover's Quantum Search Algorithm}
+\label{sec:grovers-algorithm}
+
+Grover's search algorithm~\cite{grover1996fast} is a quantum algorithm that
+locates a marked element within an unsorted database of $N$ items in
+$O(\sqrt{N})$ queries, offering a quadratic speedup over the best possible
+classical algorithm, which requires $O(N)$ queries in the worst case. Formally,
+given a Boolean function $f : \{0,1\}^n \to \{0,1\}$ with a unique marked input
+$x_0 \in \{0,1\}^n$ satisfying $f(x_0) = 1$, the algorithm identifies $x_0$ with
+high probability.
+
+The algorithm proceeds as follows.
+
+\begin{enumerate}
+    \item Initialize an $n$-qubit register in the state $\ket{0}^{\otimes n}$.
+    \item Apply a Hadamard gate to each qubit, producing an equal superposition
+    over all $2^n$ basis states:
+    \[
+    \ket{\psi} = \frac{1}{\sqrt{2^n}} \sum_{x=0}^{2^n-1} \ket{x}.
+    \]
+    \item Repeat the following two steps approximately
+    $\left\lfloor \frac{\pi}{4}\sqrt{2^n} \right\rfloor$ times:
+    \begin{enumerate}
+        \item \textbf{Oracle query.} Apply a phase-flip oracle $O_f$ that
+        inverts the amplitude of the marked state:
+        \[
+        O_f\ket{x} =
+        \begin{cases}
+            -\ket{x}, & x = x_0, \\
+            \phantom{-}\ket{x}, & x \neq x_0.
+        \end{cases}
+        \]
+        \item \textbf{Diffusion.} Apply the diffusion operator, which reflects
+        the amplitudes about their mean, amplifying the amplitude of $x_0$
+        while suppressing the others.
+    \end{enumerate}
+    \item Measure the register. With high probability, the outcome is the
+    marked element $x_0$.
+\end{enumerate}
+
+Each application of the oracle $O_f$ typically requires implementing the
+underlying function $f$ as a reversible quantum circuit, together with an
+uncomputation step to restore any ancilla qubits used during evaluation. In the
+context of symmetric-key cryptanalysis, $f$ is instantiated as an encryption
+circuit that tests whether a candidate key $k$, when used to encrypt a known
+plaintext, reproduces the corresponding known ciphertext; the marked state
+$x_0$ then corresponds to the correct secret key. Since the oracle is invoked
+once per Grover iteration, and the number of iterations grows as
+$O(2^{n/2})$ for an $n$-bit key space, the total resource cost of a
+Grover-based key-search attack is dominated by the gate count and depth of a
+single instance of the oracle circuit, multiplied by the number of
+iterations~\cite{cryptoeprint:2026/1007}. Consequently, minimizing the gate count
+and depth of the cipher's quantum circuit, the central objective of this
+thesis, directly reduces the estimated cost of mounting a Grover search
+against the cipher.
