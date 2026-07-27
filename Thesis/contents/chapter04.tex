@@ -31,10 +31,11 @@ their number for the circuit, as shown in Algorithm~\ref{alg:verify-operations},
 we use ``Verify\_Matrix()`` to copy $M$ together with $OPs_{r}$ and 
 $OPs_{c}$. This procedure applies ``row\_i2j()`` and ``col\_i2j()`` 
 to reduce the replica while simultaneously recording the number of 
-operations used. If the reduced result is not equal to $M$, this indicates 
-that the CNOT gates are valid; otherwise, if the result remains unchanged, 
-the operators are invalid, and the corresponding CNOT gates are identified 
-as ineffective.
+operations used. If the reduced result is not equal to $M$, this indicates that the
+sequence of CNOT gates is invalid; otherwise, if the initial matrix is
+transformed into $M$ after the CNOT gates have been applied, the
+operators are valid, and the corresponding CNOT gates are identified as
+effective.
 
 We then check whether the depth $d$ exceeds the maximum value, or whether 
 the CNOT count exceeds the maximum size. If either condition holds, the 
@@ -142,9 +143,9 @@ simulator, and the algorithm returns the depth $d$ and ``Layers``.
 \caption{Verify\_Matrix}
 \label{alg:verify-operations}
 \begin{algorithmic}[1]
-\Require $M \in \mathbb{F}_{2}^{n \times n}, OPs_{r}, OPs_{c}$
+\Require $M_{origin} \in \mathbb{F}_{2}^{n \times n}, M \in \mathbb{F}_{2}^{n \times n}, OPs_{r}, OPs_{c}$
 \Ensure Check operations from $OPs_{r}$ and $OPs_{c}$ that can work on $M$
-\State reduce $\leftarrow$ $M$ \Comment{Copy $M$ into a variable to be reduced.}
+\State reduce $\leftarrow$ $M_{origin}$ \Comment{Copy the initial matrix $M_{origin}$ without applying any CNOT gates.}
 \State size $\leftarrow 0$ \Comment{Initialize the CNOT count.}
 \For{$i = 0$ \textbf{to} $|OPs_{r}|-1$}
 	\State reduce $\leftarrow$ row\_i2j(reduce, $OPs_{r}[i]$.control, $OPs_{r}[i]$.target) \Comment{Apply the row operation to ``reduce``.}
@@ -155,7 +156,7 @@ simulator, and the algorithm returns the depth $d$ and ``Layers``.
 	\State size++ \Comment{Increase the CNOT gate count.}
 \EndFor
 \State ok $\leftarrow True$
-\If{reduce $\neq M$} \Comment{Check whether ``reduce`` is equal to $M$.}
+\If{reduce $\neq M$} \Comment{Verify that ``reduce`` equals $M$ after applying the CNOT gates.}
 	\State ok $\leftarrow False$ \Comment{Break if ``reduce`` is not equal to $M$.}
 \EndIf 
 \State \Return size, ok
