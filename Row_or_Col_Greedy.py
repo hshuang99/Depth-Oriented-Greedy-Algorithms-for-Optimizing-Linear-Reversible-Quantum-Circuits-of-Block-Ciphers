@@ -12,10 +12,10 @@ def row_or_Col(mat, inverse, fileName, L_r, L_c, Ls_r, Ls_c, row_op, col_op, p_v
     LIMIT = sys.float_info.max
     close_permu = False
     row_visi = [0]*SIZE; col_visi = [0]*SIZE
-    #config = configparser.ConfigParser(); config.optionxform = str;
-    #if "RAND" not in fileName:
-    #    config.read(Path("Config")/f'row_or_Col_Config_{fileName}.ini')
-    #    LIMIT = int(config.get('DEPTH', 'row_or_Col_Limit'))
+    config = configparser.ConfigParser(); config.optionxform = str;
+    if "RAND" not in fileName:
+        config.read(Path("Config")/f'row_or_Col_Config_{fileName}.ini')
+        LIMIT = int(config.get('DEPTH', 'row_or_Col_Limit'))
 
     stuck_counter = 0; max_stuck_iterations = 3
 
