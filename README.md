@@ -3,23 +3,29 @@
 - [Usage](#Usage)
 - [Result](#Result)
 - [Visualizer](#Visualizer)
+- [Circuits](#Circuits)
+- [Contribution](#Contribution)
 
 ## About
 In this project, we implement an approach that reduces the depth of quantum circuits, specifically focusing on the CNOT gate.
 ```bash
 .
-├── Matrix/
+├── Matrices/
+├── Config/
+├── Results/
+├── Circuits/
 ├── main.py
     ├── parameterizedGreedy.py
         ├── RowGreedy.py
         ├── ColGreedy.py
         ├── Row_or_Col_Greedy.py
         ├── ParallelGreedy.py
-    ├── cost_function.py
-    ├── operations.py
-    ├── selector.py
-    ├── visualizer_single.py
-    └── visualizer_all.py
+            ├── cost_function.py
+            ├── operations.py
+            ├── selector.py
+├── in-place_klein.py
+├── out-of-place_klein.py
+└── randMatGenerator.py
 ```
 ## Usage
 ### Specify the greedy algorithm and cost function type for a single execution
@@ -28,12 +34,12 @@ python3 main.py <Matrix> <Greedy Selection> <Cost Mat Function> <Times>
 ```
 - Matrix: The matrix what we testing.
 - Greedy Selection: The greedy algorithm you want to execute. We provide four types of algorithms: Row, Column, Row_or_Col, and Parallel.
-- Cost Mat Function: The cost mat function used to calculate the operation cost. You can choose from sum, square, cube, fourth and log. The function options mapping to 1, 2, 3, 4, -1.
+- Cost Mat Function: The cost mat function used to calculate the operation cost. You can choose from sum, square, origin and log. The function options mapping to 1, 2, 3 and -1.
 - Times: The number of iterations you want to run.
 
-For example, if you would like to execute a row_or_Col Greedy algorithm with square cost function,
+For example, if you would like to execute a row_or_Col Greedy algorithm with origin cost function,
 ```bash
-python3 main.py Matrix/AES.txt Row_or_Col 2 1
+python3 main.py Matrix/AES.txt Row_or_Col 3 1
 ```
 ### Execute all greedy algorithms with cost function combinations using multi-threading
 ```bash
@@ -204,3 +210,12 @@ The all visualizer can plot four types of results.
 ```bash
 python3 visualizer_all.py Row_AES-32-block_sq_Layer_Results Col_AES-32-block_sq_Layer_Results Row_or_Col_AES-32-block_sq_Layer_Results Parallel_AES-32-block_sq_Layer_Results
 ```
+
+## Circuits
+In this project, we use [ProjectQ](https://github.com/ProjectQ-Framework/ProjectQ) to draw our circuit figures. After you obtain the `.tex` file via our script and replace it with your synthesized gates, you can compile it using the `pdflatex` compiler with the following command:
+```bash
+pdflatex yourfile.tex
+```
+
+##Contribution
+This project was completed with the support of [ACADEMIA SINICA](https://www.sinica.edu.tw/en). The main supporter was [Dr. Tung Chou](https://tungchou.github.io/), who proposed the two core algorithms, Row-or-Col and Parallel, which achieve lower-depth circuits in the search for block cipher implementations.

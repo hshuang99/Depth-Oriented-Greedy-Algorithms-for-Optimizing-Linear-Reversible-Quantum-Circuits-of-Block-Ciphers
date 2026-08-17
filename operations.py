@@ -130,13 +130,15 @@ def verify_layer_conflicts(layers):
     print("All layers are conflict-free!")
     return True
 
+'''
+Check layers that (1,1)...(N,N) which every single layer follow parallel ability
+'''
 def Verify(origin, layers, sequence, mat):
     try:
-        '''
-        Check layers that (1,1)...(N,N) which every single layer follow parallel ability
-        '''
         SIZE = len(mat)
-        # First verify that layers are conflict-free
+        '''
+        First verify that layers are conflict-free
+        '''
         if not verify_layer_conflicts(layers):
             return False
             
@@ -154,9 +156,8 @@ def Verify(origin, layers, sequence, mat):
                     layer_visited[addr[0]] = 1; layer_visited[addr[1]] = 1
         print(f"Layers has all unique elements.")
         '''
-        Check recording operations can work on input matrix
+        Second verify sequence can make origin A to become permutation matrix P
         '''
-        #read the sequence
         for seq in sequence:
             #execute row operation to input matrix
             if seq[2] == 0:
@@ -168,12 +169,11 @@ def Verify(origin, layers, sequence, mat):
         print(origin)
         print("The mat:")
         print(mat)
-        #check the input matrix is same as mat after exection operations
-        if (origin == mat).all():
-            print("The operations is work")
-            return True
-        else:
+        #check the input matrix A is same as permutation mat after exection operations
+        if (origin != mat).all():
             print("The operations are not work, origin is not equal mat")
             return False
+        #All verify passed
+        return True
     except Exception as e:
         print(f"An unexcept error occured: {e}")

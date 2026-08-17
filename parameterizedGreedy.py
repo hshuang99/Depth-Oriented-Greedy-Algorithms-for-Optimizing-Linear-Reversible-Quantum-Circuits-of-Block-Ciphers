@@ -42,6 +42,9 @@ def parameterizedGreedy(mat, matName, greedy, p_value, occur):
     if over_depth:
         return
 
+    print("The Mat become permutation matrix: ")
+    print(mat)
+
     #check the last iteration
     if len(L_r) > 0:
         Ls_r.append(L_r)
