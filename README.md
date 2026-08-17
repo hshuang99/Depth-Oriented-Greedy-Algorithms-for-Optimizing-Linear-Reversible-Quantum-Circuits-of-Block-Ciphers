@@ -213,9 +213,10 @@ python3 visualizer_all.py Row_AES-32-block_sq_Layer_Results Col_AES-32-block_sq_
 
 ## Circuits
 In this project, we use [ProjectQ](https://github.com/ProjectQ-Framework/ProjectQ) to draw our circuit figures. After you obtain the `.tex` file via our script and replace it with your synthesized gates, you can compile it using the `pdflatex` compiler with the following command:
+
 ```bash
 pdflatex yourfile.tex
 ```
 
-##Contribution
+## Contribution
 This project was completed with the support of [ACADEMIA SINICA](https://www.sinica.edu.tw/en). The main supporter was [Dr. Tung Chou](https://tungchou.github.io/), who proposed the two core algorithms, Row-or-Col and Parallel, which achieve lower-depth circuits in the search for block cipher implementations.
