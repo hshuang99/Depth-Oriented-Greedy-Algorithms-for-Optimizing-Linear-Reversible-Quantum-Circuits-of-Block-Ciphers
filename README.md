@@ -216,7 +216,7 @@ python3 visualizer_all.py Row_AES-32-block_sq_Layer_Results Col_AES-32-block_sq_
 In this project, we use [ProjectQ](https://github.com/ProjectQ-Framework/ProjectQ) to draw our circuit figures. After you obtain the `.tex` file via our script and replace it with your synthesized gates, you can compile it using the `pdflatex` compiler with the following command:
 
 ```bash
-pdflatex yourfile.tex
+pdflatex yourcircuit.tex
 ```
 
 ## Contribution
