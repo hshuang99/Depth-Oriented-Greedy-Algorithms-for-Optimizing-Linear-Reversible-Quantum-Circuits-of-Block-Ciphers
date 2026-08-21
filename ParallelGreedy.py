@@ -37,9 +37,8 @@ def parallelGreedy(mat, inverse, fileName, L_r, L_c, Ls_r, Ls_c, row_op, col_op,
 
         print("Current cost:", minm_cost)
         
-        if not close_permu:
-            L_row = operations.L_collection(L_row, row_visi, SIZE)
-            B_row, best_row_cst = selector.ops_sel(L_row, L_row_cst, [], [], mat, inverse, p_value, minm_cost, B_row, 0)
+        L_row = operations.L_collection(L_row, row_visi, SIZE)
+        B_row, best_row_cst = selector.ops_sel(L_row, L_row_cst, [], [], mat, inverse, p_value, minm_cost, B_row, 0)
 
         L_col = operations.L_collection(L_col, col_visi, SIZE)
         B_col, best_col_cst = selector.ops_sel([], [], L_col, L_col_cst, mat, inverse, p_value, minm_cost, B_col, 1)
@@ -88,6 +87,9 @@ def parallelGreedy(mat, inverse, fileName, L_r, L_c, Ls_r, Ls_c, row_op, col_op,
         print("The current select_list and minimum cost: ", select_list, minm_cost)
          
         select_list, L_r, L_c, Ls_r, Ls_c, mat, inverse, row_op, col_op, row_visi, col_visi, depth, close_permu = operations.available_operator_execution(select_list, L_r, L_c, Ls_r, Ls_c, mat, inverse, row_op, col_op, row_visi, col_visi, depth, SIZE, close_permu)
+
+        print("The current mat after once available operator execution:")
+        print(mat)
 
         if close_permu:
             p_value = "-1"
