@@ -15,7 +15,7 @@ In this project, we implement an approach that reduces the depth of quantum circ
 ├── Results/
 ├── Circuits/
 ├── main.py
-    ├── parameterizedGreedy.py
+    ├── DepthOrientedGreedy.py
         ├── RowGreedy.py
         ├── ColGreedy.py
         ├── Row_or_Col_Greedy.py
