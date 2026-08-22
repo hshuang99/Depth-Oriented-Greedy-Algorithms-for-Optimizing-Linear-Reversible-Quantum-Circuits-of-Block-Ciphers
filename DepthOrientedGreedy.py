@@ -16,7 +16,7 @@ This function will execute the four kind of greedy algorithm depends on type par
 - Row_or_Column
 - Parallel
 '''
-def parameterizedGreedy(mat, matName, greedy, p_value, occur):
+def depthOrientedGreedy(mat, matName, greedy, p_value, occur):
     # Define variables
     SIZE = len(mat); depth = 0
     minm = sys.float_info.max; minm_size = sys.float_info.max
